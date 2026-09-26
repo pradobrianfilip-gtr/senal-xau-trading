@@ -134,13 +134,14 @@ Configuracion (variables de entorno):
 """
 
 import os
+import re
 import asyncio
 import threading
 import csv
 import json
 import statistics
 from collections import deque
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import requests
 import discord
 from discord.ext import tasks
@@ -177,6 +178,16 @@ ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 SIMBOLO = "XAU/USD"
 
 MADRID_TZ = ZoneInfo("Europe/Madrid")
+NUEVA_YORK_TZ = ZoneInfo("America/New_York")
+
+# Los errores de requests incluyen la URL completa (con ?apikey=...), asi que
+# cualquier excepcion que se imprima o se mande a Discord pasa antes por aqui
+# para no filtrar las API keys al canal ni a los logs.
+_PATRON_SECRETOS = re.compile(r"(apikey|api_key|token)=[^&\s]+", re.IGNORECASE)
+
+
+def _sin_secretos(texto):
+    return _PATRON_SECRETOS.sub(r"\1=***", str(texto))
 
 # Cada cuantos minutos revisamos la estructura
 INTERVALO_REVISION_MINUTOS = 5
@@ -208,8 +219,15 @@ _tendencia_estructura = None
 _ultima_vela_procesada = None
 
 # Guarda un identificador de cada patron chartista ya avisado, para no
-# repetir el mismo patron una y otra vez mientras sigue vigente
+# repetir el mismo patron una y otra vez mientras sigue vigente. Las claves
+# usan el TIMESTAMP de la vela, no su indice: la ventana de NUM_VELAS se
+# desplaza una posicion con cada vela nueva, asi que un indice cambia cada
+# 15 minutos y el mismo patron se volvia a mandar.
 _patrones_ya_avisados = set()
+
+# Swings (por timestamp) cuya ruptura ya genero un BOS/CHoCH -- sin esto, cada
+# vela que cerraba por encima del mismo swing high volvia a disparar un "BOS".
+_swings_rotos = deque(maxlen=100)
 
 # --- ATR (Average True Range): mide la volatilidad real de las ultimas
 # velas. Se usa para poner el Stop Loss a una distancia que respira con el
@@ -295,6 +313,7 @@ HORA_FIN_OPERATIVA = "22:00"
 # hace pocos minutos para otra cosa. ---
 CACHE_VELAS_MAX_MINUTOS = 6
 _cache_velas_m15 = {"datos": None, "momento": None}
+_lock_velas = threading.RLock()
 
 # --- 3) Bandera/Banderin (patrones de continuacion) ---
 VENTANA_IMPULSO_BANDERA = 6         # velas que forman el "asta" (impulso previo)
@@ -368,11 +387,11 @@ def _obtener_velas_htf_con_respaldo(intervalo, cantidad=60):
     try:
         return _obtener_velas_htf(intervalo, cantidad)
     except Exception as e:
-        print(f"[V3] Twelve Data ({intervalo}, cuenta principal) fallo ({e}), probando cuenta de respaldo...")
+        print(f"[V3] Twelve Data ({intervalo}, cuenta principal) fallo ({_sin_secretos(e)}), probando cuenta de respaldo...")
         try:
             return _obtener_velas_htf_respaldo(intervalo, cantidad)
         except Exception as e2:
-            print(f"[V3] Twelve Data ({intervalo}, respaldo) tambien fallo: {e2}")
+            print(f"[V3] Twelve Data ({intervalo}, respaldo) tambien fallo: {_sin_secretos(e2)}")
             return []
 
 
@@ -469,8 +488,9 @@ def _etiqueta_calidad_y_score(direccion, factores_base):
     score, _lineas = _calcular_score_confianza(factores_base)
     score = max(0, min(100, score + bonus_mtf))
     calidad = _clasificar_calidad_senal(score)
-    etiqueta = "⭐ PREMIUM" if calidad == "PREMIUM" else "NORMAL"
-    return etiqueta, score, detalle_mtf
+    # Antes, una senal DESCARTADA (<65) salia etiquetada como "NORMAL".
+    etiquetas = {"PREMIUM": "⭐ PREMIUM", "NORMAL": "NORMAL", "DESCARTADA": "⚠️ BAJA CONFIANZA"}
+    return etiquetas[calidad], score, detalle_mtf
 
 
 def _dentro_de_horario_operativo():
@@ -483,25 +503,29 @@ def _dentro_de_horario_operativo():
     return inicio <= ahora <= fin
 
 
-def _obtener_velas_cacheadas():
+def _obtener_velas_cacheadas(max_minutos=CACHE_VELAS_MAX_MINUTOS):
     """Devuelve las velas M15 usando cache (unos pocos minutos) -- para que
     las funciones de correlacion (estado del oro, etc.) no gasten una
     consulta nueva a Twelve Data si el ciclo principal ya las pidio hace
     poco. Usa _obtener_velas(), la misma funcion (con su propio respaldo a
-    Alpha Vantage) que ya usa revisar_senal() -- no se toca esa funcion."""
-    ahora = datetime.now(MADRID_TZ)
-    entrada = _cache_velas_m15
-    if entrada["datos"] is not None and entrada["momento"] is not None:
-        if (ahora - entrada["momento"]).total_seconds() < CACHE_VELAS_MAX_MINUTOS * 60:
-            return entrada["datos"]
-    try:
+    Alpha Vantage) que ya usa revisar_senal().
+
+    max_minutos=0 fuerza una consulta nueva (lo usa revisar_senal(), que
+    necesita el dato fresco) y deja el resultado en el cache para los demas."""
+    with _lock_velas:
+        ahora = datetime.now(MADRID_TZ)
+        entrada = _cache_velas_m15
+        if max_minutos > 0 and entrada["datos"] and entrada["momento"] is not None:
+            if (ahora - entrada["momento"]).total_seconds() < max_minutos * 60:
+                return entrada["datos"]
         velas = _obtener_velas()
-    except Exception as e:
-        print(f"[V3] No se pudieron obtener velas M15 cacheadas: {e}")
-        velas = entrada["datos"] or []
-    _cache_velas_m15["datos"] = velas
-    _cache_velas_m15["momento"] = ahora
-    return velas
+        if velas:
+            # Solo se cachea una respuesta valida: una lista vacia (API caida)
+            # no debe tapar durante 6 minutos el ultimo dato bueno.
+            _cache_velas_m15["datos"] = velas
+            _cache_velas_m15["momento"] = ahora
+            return velas
+        return entrada["datos"] or []
 
 
 def _detectar_barrido_liquidez(velas, eqh, eql):
@@ -602,7 +626,7 @@ def _detectar_banderas_banderines(velas):
     patrones = []
 
     if direccion_impulso == "alcista" and cierre_confirmacion > maximo_consolidacion:
-        clave = f"bandera_alcista_{len(velas)}_{round(maximo_consolidacion, 2)}"
+        clave = f"bandera_alcista_{round(maximo_consolidacion, 2)}"
         if clave not in _patrones_ya_avisados:
             _patrones_ya_avisados.add(clave)
             patrones.append({
@@ -619,7 +643,7 @@ def _detectar_banderas_banderines(velas):
             })
 
     elif direccion_impulso == "bajista" and cierre_confirmacion < minimo_consolidacion:
-        clave = f"bandera_bajista_{len(velas)}_{round(minimo_consolidacion, 2)}"
+        clave = f"bandera_bajista_{round(minimo_consolidacion, 2)}"
         if clave not in _patrones_ya_avisados:
             _patrones_ya_avisados.add(clave)
             patrones.append({
@@ -756,6 +780,16 @@ def revisar_estado_oro():
 
 # --- Correlacion via Alpaca: liquidez del SPY (spread + volumen) ---
 
+def _mercado_usa_abierto():
+    """Sesion regular de la bolsa de EEUU: lunes a viernes 09:30-16:00 hora
+    de Nueva York (no contempla festivos)."""
+    ahora = datetime.now(NUEVA_YORK_TZ)
+    if ahora.weekday() >= 5:
+        return False
+    minutos = ahora.hour * 60 + ahora.minute
+    return 9 * 60 + 30 <= minutos < 16 * 60
+
+
 def revisar_liquidez_spy():
     """Avisa cuando el spread bid-ask o el volumen del SPY se disparan muy
     por encima de su media reciente -- señal de que algo se esta moviendo
@@ -763,6 +797,11 @@ def revisar_liquidez_spy():
     if en_pausa_fin_de_semana():
         return
     if "PON_AQUI" in ALPACA_API_KEY:
+        return
+    # Fuera de la sesion regular de EEUU el minuteBar/latestQuote del SPY son
+    # viejos o de pre/post-market (spreads anchos, volumen casi nulo): eso
+    # generaba falsas alarmas y contaminaba la media de referencia.
+    if not _mercado_usa_abierto():
         return
 
     url = f"https://data.alpaca.markets/v2/stocks/{SIMBOLO_LIQUIDEZ}/snapshot"
@@ -996,10 +1035,20 @@ def _cargar_senales_abiertas():
         print(f"No se pudo cargar el estado de senales abiertas: {e}")
 
 
+def _escribir_atomico(ruta, escribir, newline=None):
+    """Escribe en un archivo temporal y lo renombra encima del original: si
+    el contenedor se reinicia a mitad de escritura, el archivo anterior queda
+    intacto en vez de quedar truncado (y perder todo el historial)."""
+    temporal = f"{ruta}.tmp"
+    with open(temporal, "w", newline=newline, encoding="utf-8") as f:
+        escribir(f)
+    os.replace(temporal, ruta)
+
+
 def _guardar_senales_abiertas():
     try:
-        with open(ARCHIVO_SENALES_ABIERTAS, "w", encoding="utf-8") as f:
-            json.dump({"abiertas": _senales_abiertas, "siguiente_id": _siguiente_id_senal}, f)
+        estado = {"abiertas": _senales_abiertas, "siguiente_id": _siguiente_id_senal}
+        _escribir_atomico(ARCHIVO_SENALES_ABIERTAS, lambda f: json.dump(estado, f))
     except Exception as e:
         print(f"No se pudo guardar el estado de senales abiertas: {e}")
 
@@ -1042,10 +1091,11 @@ def _actualizar_resultado_historial(id_senal, resultado):
             if len(fila) > idx_id and fila[idx_id] == str(id_senal):
                 fila[idx_resultado] = resultado
                 break
-        with open(ARCHIVO_HISTORIAL, "w", newline="", encoding="utf-8") as f:
+        def _escribir(f):
             escritor = csv.writer(f)
             escritor.writerow(cabecera)
             escritor.writerows(resto)
+        _escribir_atomico(ARCHIVO_HISTORIAL, _escribir, newline="")
     except Exception as e:
         print(f"No se pudo actualizar el resultado en el historial (senal #{id_senal}): {e}")
 
@@ -1310,13 +1360,26 @@ def enviar_discord(titulo, descripcion, color=0xF5A623):
     Se puede llamar tanto desde codigo sincrono (el chequeo automatico)
     como desde el propio bot -- run_coroutine_threadsafe se encarga de
     programarlo en el hilo correcto sin bloquear nada."""
+    descripcion = _sin_secretos(descripcion)
     if _canal is None:
         print(f"[CANAL NO LISTO TODAVIA] {titulo}: {descripcion}")
         return
     embed = discord.Embed(title=titulo, description=descripcion, color=color)
     embed.set_footer(text=f"Hora Madrid: {hora_madrid()}")
+
+    async def _enviar():
+        # La vista se crea dentro del event loop de Discord, no en el hilo
+        # de trabajo que llama a esta funcion.
+        await _canal.send(embed=embed, view=VistaMonitor())
+
+    def _al_terminar(futuro):
+        # Sin esto, un fallo de canal.send() (permisos, 429...) se perdia en
+        # silencio dentro del Future que nadie consultaba.
+        if futuro.exception() is not None:
+            print(f"Error enviando a Discord ({titulo}): {futuro.exception()}")
+
     try:
-        asyncio.run_coroutine_threadsafe(_canal.send(embed=embed, view=VistaMonitor()), client.loop)
+        asyncio.run_coroutine_threadsafe(_enviar(), client.loop).add_done_callback(_al_terminar)
     except Exception as e:
         print(f"Error enviando a Discord: {e}")
 
@@ -1336,6 +1399,26 @@ def _parsear_timestamp_utc(t):
         except ValueError:
             continue
     raise ValueError(f"No se pudo interpretar la fecha: {t}")
+
+
+MINUTOS_POR_VELA = 15  # debe coincidir con GRANULARIDAD
+
+
+def _solo_velas_cerradas(velas, minutos_por_vela=MINUTOS_POR_VELA):
+    """Twelve Data (y Alpha Vantage) devuelven como ultima vela la que TODAVIA
+    se esta formando. Si se analiza esa vela como si estuviera cerrada, las
+    senales se disparan con precios a medio formar (repintan) y, como la
+    vela queda marcada como procesada, su cierre real nunca se evalua. Aqui
+    se descarta la ultima vela si su hora de apertura + duracion aun no paso."""
+    if not velas:
+        return velas
+    try:
+        apertura = _parsear_timestamp_utc(velas[-1]["t"])
+    except ValueError:
+        return velas
+    if apertura + timedelta(minutes=minutos_por_vela) > datetime.now(timezone.utc):
+        return velas[:-1]
+    return velas
 
 
 def _obtener_velas_twelvedata():
@@ -1411,7 +1494,14 @@ def _obtener_velas_alphavantage():
 
 def _obtener_velas():
     """Intenta Twelve Data primero; si falla, intenta Alpha Vantage. Avisa a
-    Discord (una sola vez, no cada 5 minutos) cuando cambia de fuente."""
+    Discord (una sola vez, no cada 5 minutos) cuando cambia de fuente.
+    Protegido con un lock: varias tareas (senales, estado del oro, boton)
+    corren en hilos distintos y comparten _usando_respaldo."""
+    with _lock_velas:
+        return _obtener_velas_sin_lock()
+
+
+def _obtener_velas_sin_lock():
     global _usando_respaldo
 
     try:
@@ -1427,20 +1517,21 @@ def _obtener_velas():
         return velas
 
     except Exception as e:
-        print(f"Twelve Data fallo ({e}), probando la fuente de respaldo...")
+        error = _sin_secretos(e)
+        print(f"Twelve Data fallo ({error}), probando la fuente de respaldo...")
         try:
             velas = _obtener_velas_alphavantage()
             if velas and not _usando_respaldo:
                 _usando_respaldo = True
                 enviar_discord(
                     "Usando fuente de respaldo (Alpha Vantage)",
-                    f"Twelve Data no respondio ({e}). El bot sigue funcionando "
+                    f"Twelve Data no respondio ({error}). El bot sigue funcionando "
                     f"con Alpha Vantage mientras tanto.",
                     color=0xEF9F27
                 )
             return velas
         except Exception as e2:
-            print(f"La fuente de respaldo tambien fallo: {e2}")
+            print(f"La fuente de respaldo tambien fallo: {_sin_secretos(e2)}")
             return []
 
 
@@ -1515,8 +1606,11 @@ def _obtener_tendencia_diaria(velas_intradia=None):
             else:
                 tendencia = None
     except Exception as e:
-        print(f"No se pudo calcular la tendencia diaria con velas diarias ({e}).")
-        tendencia = _cache_tendencia_diaria["tendencia"]  # mantener la ultima conocida antes que fallar en seco
+        print(f"No se pudo calcular la tendencia diaria con velas diarias ({_sin_secretos(e)}).")
+        # Se devuelve la ultima conocida, pero SIN marcar la fecha de hoy: si
+        # no, un solo fallo puntual (ej. un 429) dejaba el filtro sin
+        # actualizar el resto del dia. Se reintenta en la siguiente revision.
+        return _cache_tendencia_diaria["tendencia"]
 
     _cache_tendencia_diaria = {"fecha": hoy, "tendencia": tendencia}
     return tendencia
@@ -1646,10 +1740,27 @@ def _detectar_evento_estructura(velas, swings):
 
     ultima_vela = velas[-1]
     cierre = ultima_vela["c"]
+    cierre_previo = velas[-2]["c"] if len(velas) >= 2 else None
+
+    def _es_ruptura_nueva(swing, al_alza):
+        """La ruptura cuenta solo en la vela que CRUZA el nivel (la anterior
+        cerro del otro lado) y solo una vez por swing."""
+        if swing is None or cierre_previo is None:
+            return False
+        clave = (swing[1], velas[swing[0]]["t"])
+        if clave in _swings_rotos:
+            return False
+        if al_alza:
+            cruza = cierre > swing[2] and cierre_previo <= swing[2]
+        else:
+            cruza = cierre < swing[2] and cierre_previo >= swing[2]
+        if cruza:
+            _swings_rotos.append(clave)
+        return cruza
 
     evento = None
 
-    if ultimo_swing_high and cierre > ultimo_swing_high[2]:
+    if _es_ruptura_nueva(ultimo_swing_high, al_alza=True):
         tipo = "CHoCH" if _tendencia_estructura != "alcista" else "BOS"
         evento = {
             "tipo": tipo,
@@ -1659,7 +1770,7 @@ def _detectar_evento_estructura(velas, swings):
         }
         _tendencia_estructura = "alcista"
 
-    elif ultimo_swing_low and cierre < ultimo_swing_low[2]:
+    elif _es_ruptura_nueva(ultimo_swing_low, al_alza=False):
         tipo = "CHoCH" if _tendencia_estructura != "bajista" else "BOS"
         evento = {
             "tipo": tipo,
@@ -1697,7 +1808,7 @@ def _detectar_doble_techo_suelo(swings, velas):
         valle_entre = [l for l in lows if h1[0] < l[0] < h2[0]]
         if diferencia_pct <= TOLERANCIA_PATRON_PCT and valle_entre:
             neckline = min(v[2] for v in valle_entre)
-            clave = f"doble_techo_{h2[0]}"
+            clave = f"doble_techo_{velas[h2[0]]['t']}"
             if cierre_actual < neckline and clave not in _patrones_ya_avisados:
                 _patrones_ya_avisados.add(clave)
                 altura = h2[2] - neckline
@@ -1719,7 +1830,7 @@ def _detectar_doble_techo_suelo(swings, velas):
         pico_entre = [h for h in highs if l1[0] < h[0] < l2[0]]
         if diferencia_pct <= TOLERANCIA_PATRON_PCT and pico_entre:
             neckline = max(p[2] for p in pico_entre)
-            clave = f"doble_suelo_{l2[0]}"
+            clave = f"doble_suelo_{velas[l2[0]]['t']}"
             if cierre_actual > neckline and clave not in _patrones_ya_avisados:
                 _patrones_ya_avisados.add(clave)
                 altura = neckline - l2[2]
@@ -1755,7 +1866,7 @@ def _detectar_hch(swings, velas):
 
         if hombros_similares and cabeza_mas_alta and len(valles) >= 2:
             neckline = sum(v[2] for v in valles) / len(valles)
-            clave = f"hch_{h_der[0]}"
+            clave = f"hch_{velas[h_der[0]]['t']}"
             if cierre_actual < neckline and clave not in _patrones_ya_avisados:
                 _patrones_ya_avisados.add(clave)
                 altura = cabeza[2] - neckline
@@ -1778,7 +1889,7 @@ def _detectar_hch(swings, velas):
 
         if hombros_similares and cabeza_mas_baja and len(picos) >= 2:
             neckline = sum(p[2] for p in picos) / len(picos)
-            clave = f"hch_inv_{l_der[0]}"
+            clave = f"hch_inv_{velas[l_der[0]]['t']}"
             if cierre_actual > neckline and clave not in _patrones_ya_avisados:
                 _patrones_ya_avisados.add(clave)
                 altura = neckline - cabeza[2]
@@ -1795,7 +1906,7 @@ def _detectar_hch(swings, velas):
     return patrones
 
 
-def _detectar_triangulos_cunas(swings):
+def _detectar_triangulos_cunas(swings, velas):
     """Analiza la pendiente de los ultimos 3 maximos y los ultimos 3 minimos
     para clasificar el patron. Esto es una aproximacion por pendientes, no
     un ajuste geometrico exacto -- se reporta como CONTEXTO/SESGO, sin
@@ -1826,7 +1937,7 @@ def _detectar_triangulos_cunas(swings):
     else:
         return None
 
-    clave = f"{nombre}_{highs[-1][0]}_{lows[-1][0]}"
+    clave = f"{nombre}_{velas[highs[-1][0]]['t']}_{velas[lows[-1][0]]['t']}"
     if clave in _patrones_ya_avisados:
         return None
     _patrones_ya_avisados.add(clave)
@@ -1923,7 +2034,9 @@ def revisar_senal():
         # se corta mas abajo con el mismo chequeo antes de avisar por Discord.
 
     try:
-        velas = _obtener_velas()
+        # Dato fresco (max_minutos=0) que ademas queda en el cache para el
+        # estado del oro y el boton; y solo velas CERRADAS para el analisis.
+        velas = _solo_velas_cerradas(_obtener_velas_cacheadas(max_minutos=0))
         if len(velas) < (FUERZA_SWING * 2 + 5):
             print("Senal XAU/USD: no hay suficientes velas todavia.")
             return
@@ -1958,12 +2071,28 @@ def revisar_senal():
         # muerta entre el cierre de NY y la apertura de Sidney.
         sesiones_activas = _sesiones_activas_ahora()
         fuera_de_ventana = REQUERIR_SESION_ACTIVA and not sesiones_activas
-        etiqueta_sesion = (", ".join(sesiones_activas) + (" (solapamiento, alta liquidez)" if len(sesiones_activas) > 1 else "")) if sesiones_activas else "ninguna (hora muerta)"
 
         # Veredicto del dia por apertura de sesiones (Tokio/Londres/NY/Sidney)
         detalle_sesiones, veredicto_sesiones = _sesgo_por_apertura_sesiones(velas)
         texto_veredicto = _texto_veredicto_sesiones(detalle_sesiones, veredicto_sesiones)
         print(texto_veredicto)
+
+        # Filtro de tendencia: el veredicto por apertura de sesiones
+        # (Tokio/Londres/Nueva York/Sidney) manda; si todavia esta MIXTO
+        # (pocas sesiones abiertas o empate), se usa la EMA20 diaria como
+        # respaldo en vez de bloquear la senal sin ningun criterio. Se calcula
+        # aqui (antes, solo para BOS/CHoCH) porque el score de los patrones
+        # tambien lo usa -- antes se les sumaba "Tendencia diaria a favor"
+        # como True fijo aunque fueran en contra del dia.
+        if veredicto_sesiones == "ALCISTA":
+            tendencia_diaria = "alcista"
+        elif veredicto_sesiones == "BAJISTA":
+            tendencia_diaria = "bajista"
+        else:
+            tendencia_diaria = _obtener_tendencia_diaria(velas)
+
+        def _a_favor_del_dia(direccion):
+            return tendencia_diaria is None or tendencia_diaria == direccion
 
         # Confirmacion de liquidez/volumen sobre la vela que dispara la senal
         # (misma vela para patrones y estructura en este ciclo de revision)
@@ -2002,7 +2131,7 @@ def revisar_senal():
                 [
                     ("Patron chartista confirmado", True, 30),
                     ("RSI de reversion confirmado", True, 20),
-                    ("Tendencia diaria a favor", True, 15),
+                    ("Tendencia diaria a favor", _a_favor_del_dia(patron["direccion"]), 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2048,7 +2177,7 @@ def revisar_senal():
                 [
                     ("Patron de continuacion confirmado", True, 30),
                     ("RSI de impulso sano", rsi_confirma_cont, 20),
-                    ("Tendencia diaria a favor", True, 15),
+                    ("Tendencia diaria a favor", _a_favor_del_dia(patron_cont["direccion"]), 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2091,7 +2220,7 @@ def revisar_senal():
                 barrido["direccion"],
                 [
                     ("Barrido de liquidez confirmado", True, 30),
-                    ("Tendencia diaria a favor", True, 15),
+                    ("Tendencia diaria a favor", _a_favor_del_dia(barrido["direccion"]), 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2113,7 +2242,7 @@ def revisar_senal():
                 barrido["stop_loss"], take_profit_barrido, rsi_actual, extra=f"score={score_barrido}"
             )
 
-        patron_geometrico = _detectar_triangulos_cunas(swings)
+        patron_geometrico = _detectar_triangulos_cunas(swings, velas)
         if patron_geometrico:
             # Aviso de CONTEXTO sin Entry/SL/TP -- se queda solo interno
             # (print), no se manda a Discord, porque no es una senal operable.
@@ -2137,18 +2266,7 @@ def revisar_senal():
                   f"alcanzo el limite de {MAX_SENALES_ESTRUCTURA_POR_DIA} senales de estructura hoy -- no se manda.")
             return
 
-        # Filtro de tendencia: el veredicto por apertura de sesiones
-        # (Tokio/Londres/Nueva York/Sidney) manda; si todavia esta MIXTO
-        # (pocas sesiones abiertas o empate), se usa la EMA20 diaria como
-        # respaldo en vez de bloquear la senal sin ningun criterio.
-        if veredicto_sesiones == "ALCISTA":
-            tendencia_diaria = "alcista"
-        elif veredicto_sesiones == "BAJISTA":
-            tendencia_diaria = "bajista"
-        else:
-            tendencia_diaria = _obtener_tendencia_diaria(velas)
-
-        va_contra_el_dia = tendencia_diaria is not None and tendencia_diaria != evento["direccion"]
+        va_contra_el_dia = not _a_favor_del_dia(evento["direccion"])
 
         if va_contra_el_dia and evento["tipo"] != "CHoCH":
             # Un BOS en contra del veredicto del dia no es el tipo de aviso
@@ -2209,7 +2327,6 @@ def revisar_senal():
             # Take Profit: el EQH mas cercano por encima del precio actual, si existe
             objetivos = sorted([n for n in eqh if n > precio_actual])
             take_profit = objetivos[0] if objetivos else round(precio_actual + (precio_actual - stop_loss) * RATIO_RIESGO_BENEFICIO_RESPALDO, 2)
-            fuente_tp = "zona de liquidez EQH" if objetivos else f"respaldo 1:{RATIO_RIESGO_BENEFICIO_RESPALDO}"
             color = 0x5DCAA5
         else:
             tipo_senal = "SELL"
@@ -2219,7 +2336,6 @@ def revisar_senal():
                 stop_loss = round(precio_actual + colchon, 2) if colchon else round(precio_actual * 1.005, 2)
             objetivos = sorted([n for n in eql if n < precio_actual], reverse=True)
             take_profit = objetivos[0] if objetivos else round(precio_actual - (stop_loss - precio_actual) * RATIO_RIESGO_BENEFICIO_RESPALDO, 2)
-            fuente_tp = "zona de liquidez EQL" if objetivos else f"respaldo 1:{RATIO_RIESGO_BENEFICIO_RESPALDO}"
             color = 0xE24B4A
 
         # NOTA: FVG, ATR, sesiones, veredicto del dia y RSI se siguen
@@ -2277,7 +2393,7 @@ def revisar_senal():
         )
 
     except Exception as e:
-        print(f"Error revisando senal XAU/USD: {e}")
+        print(f"Error revisando senal XAU/USD: {_sin_secretos(e)}")
 
 
 # ---------------------------------------------------------------------------
@@ -2305,7 +2421,7 @@ def generar_reporte_bajo_demanda():
             color=0xEF9F27
         )
     try:
-        velas = _obtener_velas()
+        velas = _obtener_velas_cacheadas()
         if len(velas) < (FUERZA_SWING * 2 + 5):
             return discord.Embed(
                 title="Todavia no hay suficientes datos",
@@ -2367,7 +2483,7 @@ def generar_reporte_bajo_demanda():
         return embed
 
     except Exception as e:
-        return discord.Embed(title="Error generando el reporte", description=str(e), color=0xE24B4A)
+        return discord.Embed(title="Error generando el reporte", description=_sin_secretos(e), color=0xE24B4A)
 
 
 class VistaMonitor(discord.ui.View):
@@ -2407,7 +2523,7 @@ def iniciar_servidor_web():
         def log_message(self, format, *args):
             pass
 
-    servidor = HTTPServer(("0.0.0.0", puerto), Handler)
+    servidor = ThreadingHTTPServer(("0.0.0.0", puerto), Handler)
     servidor.serve_forever()
 
 
@@ -2440,13 +2556,22 @@ async def revisar_liquidez_spy_periodicamente():
     await asyncio.to_thread(revisar_liquidez_spy)
 
 
+_arranque_anunciado = False
+
+
 @client.event
 async def on_ready():
-    global _canal
+    # on_ready se dispara de nuevo en cada reconexion con Discord: el mensaje
+    # de arranque y la vista persistente solo se registran la primera vez.
+    global _canal, _arranque_anunciado
     _canal = client.get_channel(DISCORD_CHANNEL_ID)
-    client.add_view(VistaMonitor())  # para que el boton siga vivo tras reinicios
 
     print(f"Bot conectado como {client.user}. Hora Madrid: {hora_madrid()}")
+
+    if _arranque_anunciado:
+        return
+    _arranque_anunciado = True
+    client.add_view(VistaMonitor())  # para que el boton siga vivo tras reinicios
 
     if _canal is not None:
         await _canal.send(

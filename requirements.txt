@@ -1,2 +1,2 @@
-requests
-discord.py
+requests>=2.32,<3
+discord.py>=2.7,<3

@@ -287,7 +287,7 @@ def _en_ventana_blackout_noticias():
 
 # --- 1) Score de confianza: umbrales de clasificacion por calidad ---
 SCORE_UMBRAL_PREMIUM = 80
-SCORE_UMBRAL_NORMAL = 65
+SCORE_UMBRAL_NORMAL = 70  # por debajo: DESCARTADA y NO se envia (igual que BOT_ATLAS y fusion)
 
 # --- 1) Multi-timeframe: bonus de confianza si H1/H4/D1 coinciden con la
 # direccion de la senal (M15) ---
@@ -472,7 +472,7 @@ def _calcular_score_confianza(factores):
 
 def _clasificar_calidad_senal(score):
     """Clasifica la senal segun el score de confianza: >=80 -> PREMIUM,
-    >=65 -> NORMAL, menos -> DESCARTADA."""
+    >=70 -> NORMAL, menos -> DESCARTADA (no se envia)."""
     if score >= SCORE_UMBRAL_PREMIUM:
         return "PREMIUM"
     elif score >= SCORE_UMBRAL_NORMAL:
@@ -488,9 +488,19 @@ def _etiqueta_calidad_y_score(direccion, factores_base):
     score, _lineas = _calcular_score_confianza(factores_base)
     score = max(0, min(100, score + bonus_mtf))
     calidad = _clasificar_calidad_senal(score)
-    # Antes, una senal DESCARTADA (<65) salia etiquetada como "NORMAL".
+    # DESCARTADA no llega a enviarse (ver _descartada_por_score); la etiqueta
+    # solo aparece en los logs.
     etiquetas = {"PREMIUM": "⭐ PREMIUM", "NORMAL": "NORMAL", "DESCARTADA": "⚠️ BAJA CONFIANZA"}
     return etiquetas[calidad], score, detalle_mtf
+
+
+def _descartada_por_score(nombre, score):
+    """True (y lo deja en el log) si la senal no llega al score minimo: igual
+    que BOT_ATLAS y fusion, por debajo de SCORE_UMBRAL_NORMAL no se envia."""
+    if score < SCORE_UMBRAL_NORMAL:
+        print(f"{nombre} descartada por score bajo ({score}/100, minimo {SCORE_UMBRAL_NORMAL}).")
+        return True
+    return False
 
 
 def _dentro_de_horario_operativo():
@@ -2124,8 +2134,8 @@ def revisar_senal():
             tipo_senal_patron = "BUY" if patron["direccion"] == "alcista" else "SELL"
             color_patron = 0x5DCAA5 if patron["direccion"] == "alcista" else 0xE24B4A
 
-            # [V3 -- agregado] Score de confianza + multi-timeframe. No cambia
-            # si la senal se manda o no -- solo etiqueta la calidad.
+            # [V3 -- agregado] Score de confianza + multi-timeframe. Por debajo
+            # del minimo (SCORE_UMBRAL_NORMAL) la senal no se manda.
             etiqueta_calidad_patron, score_patron, detalle_mtf_patron = _etiqueta_calidad_y_score(
                 patron["direccion"],
                 [
@@ -2136,6 +2146,8 @@ def revisar_senal():
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
             )
+            if _descartada_por_score(f"Patron {patron['nombre']}", score_patron):
+                continue
             print(f"Patron {patron['nombre']} confirmado ({tipo_senal_patron}, {etiqueta_calidad_patron} "
                   f"{score_patron}/100) -- mandando senal limpia a Discord.")
             enviar_discord(
@@ -2182,6 +2194,8 @@ def revisar_senal():
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
             )
+            if _descartada_por_score(f"[V3] {patron_cont['nombre']}", score_cont):
+                continue
             print(f"[V3] {patron_cont['nombre']} confirmado ({tipo_senal_cont}, {etiqueta_calidad_cont} "
                   f"{score_cont}/100) -- mandando senal limpia a Discord.")
             enviar_discord(
@@ -2225,6 +2239,9 @@ def revisar_senal():
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
             )
+            if _descartada_por_score(f"[V3] Barrido de liquidez {barrido['direccion']}", score_barrido):
+                barrido = None
+        if barrido:
             print(f"[V3] Barrido de liquidez {barrido['direccion']} confirmado ({tipo_senal_barrido}, "
                   f"{etiqueta_calidad_barrido} {score_barrido}/100) -- mandando senal limpia a Discord.")
             enviar_discord(
@@ -2374,6 +2391,9 @@ def revisar_senal():
             titulo_aviso = f"{tipo_senal} {etiqueta_calidad_estructura} ({score_estructura}/100)"
             print(f"Senal {evento['tipo']} {evento['direccion']} confirmada -- mandando senal limpia a Discord "
                   f"(senal {_contador_senales_hoy + 1} de {MAX_SENALES_ESTRUCTURA_POR_DIA} hoy).")
+
+        if _descartada_por_score(f"Senal {evento['tipo']} {evento['direccion']}", score_estructura):
+            return
 
         enviar_discord(
             titulo_aviso,

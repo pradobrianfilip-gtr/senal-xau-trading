@@ -288,6 +288,7 @@ def _en_ventana_blackout_noticias():
 # --- 1) Score de confianza: umbrales de clasificacion por calidad ---
 SCORE_UMBRAL_PREMIUM = 80
 SCORE_UMBRAL_NORMAL = 70  # por debajo: DESCARTADA y NO se envia (igual que BOT_ATLAS y fusion)
+SOLO_PREMIUM = True  # True: solo se envian las PREMIUM (>= SCORE_UMBRAL_PREMIUM), como BOT_ATLAS
 
 # --- 1) Multi-timeframe: bonus de confianza si H1/H4/D1 coinciden con la
 # direccion de la senal (M15) ---
@@ -496,9 +497,10 @@ def _etiqueta_calidad_y_score(direccion, factores_base):
 
 def _descartada_por_score(nombre, score):
     """True (y lo deja en el log) si la senal no llega al score minimo: igual
-    que BOT_ATLAS y fusion, por debajo de SCORE_UMBRAL_NORMAL no se envia."""
-    if score < SCORE_UMBRAL_NORMAL:
-        print(f"{nombre} descartada por score bajo ({score}/100, minimo {SCORE_UMBRAL_NORMAL}).")
+    que BOT_ATLAS y fusion. Con SOLO_PREMIUM el minimo es SCORE_UMBRAL_PREMIUM."""
+    minimo = SCORE_UMBRAL_PREMIUM if SOLO_PREMIUM else SCORE_UMBRAL_NORMAL
+    if score < minimo:
+        print(f"{nombre} descartada por score bajo ({score}/100, minimo {minimo}).")
         return True
     return False
 

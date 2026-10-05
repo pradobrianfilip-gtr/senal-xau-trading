@@ -2089,22 +2089,22 @@ def revisar_senal():
         texto_veredicto = _texto_veredicto_sesiones(detalle_sesiones, veredicto_sesiones)
         print(texto_veredicto)
 
-        # Filtro de tendencia: el veredicto por apertura de sesiones
-        # (Tokio/Londres/Nueva York/Sidney) manda; si todavia esta MIXTO
-        # (pocas sesiones abiertas o empate), se usa la EMA20 diaria como
-        # respaldo en vez de bloquear la senal sin ningun criterio. Se calcula
-        # aqui (antes, solo para BOS/CHoCH) porque el score de los patrones
-        # tambien lo usa -- antes se les sumaba "Tendencia diaria a favor"
-        # como True fijo aunque fueran en contra del dia.
-        if veredicto_sesiones == "ALCISTA":
-            tendencia_diaria = "alcista"
-        elif veredicto_sesiones == "BAJISTA":
-            tendencia_diaria = "bajista"
-        else:
-            tendencia_diaria = _obtener_tendencia_diaria(velas)
+        # Filtro de tendencia: EMA20 de velas DIARIAS, la misma fuente de
+        # verdad que BOT_ATLAS y fusion. Si el precio esta sobre la EMA20 solo
+        # se mandan BUY; si esta debajo, solo SELL (ningun tipo de senal se
+        # salta este filtro). Antes mandaba el veredicto por apertura de
+        # sesiones, y un mismo dia un bot daba BUY y otro SELL. El veredicto
+        # por sesiones se sigue imprimiendo solo como informacion.
+        tendencia_diaria = _obtener_tendencia_diaria(velas)
 
         def _a_favor_del_dia(direccion):
             return tendencia_diaria is None or tendencia_diaria == direccion
+
+        def _bloqueada_por_tendencia(nombre, direccion):
+            if _a_favor_del_dia(direccion):
+                return False
+            print(f"{nombre} {direccion} descartado: va contra la tendencia EMA20 diaria ({tendencia_diaria}).")
+            return True
 
         # Confirmacion de liquidez/volumen sobre la vela que dispara la senal
         # (misma vela para patrones y estructura en este ciclo de revision)
@@ -2118,6 +2118,8 @@ def revisar_senal():
 
         # --- Patrones chartistas (independientes del BOS/CHoCH) ---
         for patron in ([] if no_enviar_entradas else (_detectar_doble_techo_suelo(swings, velas) + _detectar_hch(swings, velas))):
+            if _bloqueada_por_tendencia(f"Patron {patron['nombre']}", patron["direccion"]):
+                continue
             # Confirmacion por RSI: un techo (bajista) vale mas si el RSI
             # estuvo en sobrecompra antes de formarse; un suelo (alcista)
             # vale mas si el RSI estuvo en sobreventa.
@@ -2143,7 +2145,7 @@ def revisar_senal():
                 [
                     ("Patron chartista confirmado", True, 30),
                     ("RSI de reversion confirmado", True, 20),
-                    ("Tendencia diaria a favor", _a_favor_del_dia(patron["direccion"]), 15),
+                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2172,6 +2174,8 @@ def revisar_senal():
         # banda ya calibrada para BOS/CHoCH: 45-80 alcista, 20-55 bajista)
         # en vez de la de sobrecompra/sobreventa que usa el loop de arriba.
         for patron_cont in ([] if no_enviar_entradas else _detectar_banderas_banderines(velas)):
+            if _bloqueada_por_tendencia(f"[V3] {patron_cont['nombre']}", patron_cont["direccion"]):
+                continue
             if rsi_actual is None:
                 rsi_confirma_cont = True
             elif patron_cont["direccion"] == "alcista":
@@ -2191,7 +2195,7 @@ def revisar_senal():
                 [
                     ("Patron de continuacion confirmado", True, 30),
                     ("RSI de impulso sano", rsi_confirma_cont, 20),
-                    ("Tendencia diaria a favor", _a_favor_del_dia(patron_cont["direccion"]), 15),
+                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2223,6 +2227,8 @@ def revisar_senal():
         # arriba.
         eqh_v3, eql_v3 = _detectar_liquidez(swings)
         barrido = None if no_enviar_entradas else _detectar_barrido_liquidez(velas, eqh_v3, eql_v3)
+        if barrido and _bloqueada_por_tendencia("[V3] Barrido de liquidez", barrido["direccion"]):
+            barrido = None
         if barrido:
             tipo_senal_barrido = "BUY" if barrido["direccion"] == "alcista" else "SELL"
             color_barrido = 0x5DCAA5 if barrido["direccion"] == "alcista" else 0xE24B4A
@@ -2236,7 +2242,7 @@ def revisar_senal():
                 barrido["direccion"],
                 [
                     ("Barrido de liquidez confirmado", True, 30),
-                    ("Tendencia diaria a favor", _a_favor_del_dia(barrido["direccion"]), 15),
+                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2285,23 +2291,10 @@ def revisar_senal():
                   f"alcanzo el limite de {MAX_SENALES_ESTRUCTURA_POR_DIA} senales de estructura hoy -- no se manda.")
             return
 
-        va_contra_el_dia = not _a_favor_del_dia(evento["direccion"])
-
-        if va_contra_el_dia and evento["tipo"] != "CHoCH":
-            # Un BOS en contra del veredicto del dia no es el tipo de aviso
-            # que interesa (un BOS por definicion sigue una tendencia de
-            # estructura, no marca un giro) -- se sigue bloqueando igual
-            # que antes.
-            print(
-                f"Senal XAU/USD: {evento['tipo']} {evento['direccion']} detectado, "
-                f"pero el veredicto del dia es {tendencia_diaria} -- no se manda (va en contra del dia). {texto_veredicto}"
-            )
+        # Ni BOS ni CHoCH se mandan contra la EMA20 diaria (antes el CHoCH
+        # contra-tendencia se mandaba etiquetado como tal).
+        if _bloqueada_por_tendencia(f"Senal XAU/USD: {evento['tipo']}", evento["direccion"]):
             return
-
-        # Si es CHoCH contra el dia, se deja pasar -- se manda igual, pero
-        # mas abajo se etiqueta claramente como "contra-tendencia" en vez
-        # de mandarlo como una senal BUY/SELL normal.
-        contra_tendencia_choch = va_contra_el_dia and evento["tipo"] == "CHoCH"
 
         # Filtro de RSI: antes exigia una banda estrecha (50-70 para BUY,
         # 30-50 para SELL) que descartaba impulsos fuertes -- una vela muy
@@ -2361,38 +2354,20 @@ def revisar_senal():
         # calculando y filtrando por dentro (ver arriba), solo que ya no se
         # incluyen en el texto que se manda a Discord -- se deja el mensaje
         # limpio con solo lo operable.
-        if contra_tendencia_choch:
-            # Segundo tipo de aviso: CHoCH en contra del veredicto del dia --
-            # se etiqueta claramente distinto a una senal BUY/SELL normal,
-            # porque es de mayor riesgo (posible giro, no confirmado por la
-            # tendencia general del dia).
-            etiqueta_calidad_estructura, score_estructura, detalle_mtf_estructura = _etiqueta_calidad_y_score(
-                evento["direccion"],
-                [
-                    (f"{evento['tipo']} confirmado", True, 25),
-                    ("RSI favorable", True, 20),
-                    ("Liquidez/volumen confirmado", confirma_liquidez, 10),
-                    ("Sesion activa", not fuera_de_ventana, 10),
-                ]
-            )
-            titulo_aviso = f"CHoCH {evento['direccion'].upper()} (contra-tendencia del dia) -- {etiqueta_calidad_estructura} ({score_estructura}/100)"
-            print(f"CHoCH {evento['direccion']} contra la tendencia del dia -- mandando aviso "
-                  f"etiquetado (senal {_contador_senales_hoy + 1} de {MAX_SENALES_ESTRUCTURA_POR_DIA} hoy).")
-        else:
-            etiqueta_calidad_estructura, score_estructura, detalle_mtf_estructura = _etiqueta_calidad_y_score(
-                evento["direccion"],
-                [
-                    (f"{evento['tipo']} confirmado", True, 25),
-                    ("RSI favorable", True, 20),
-                    ("Tendencia diaria a favor (EMA20/sesiones)", True, 15),
-                    ("FVG alineado", bool(fvgs), 10),
-                    ("Liquidez/volumen confirmado", confirma_liquidez, 10),
-                    ("Sesion activa", not fuera_de_ventana, 10),
-                ]
-            )
-            titulo_aviso = f"{tipo_senal} {etiqueta_calidad_estructura} ({score_estructura}/100)"
-            print(f"Senal {evento['tipo']} {evento['direccion']} confirmada -- mandando senal limpia a Discord "
-                  f"(senal {_contador_senales_hoy + 1} de {MAX_SENALES_ESTRUCTURA_POR_DIA} hoy).")
+        etiqueta_calidad_estructura, score_estructura, detalle_mtf_estructura = _etiqueta_calidad_y_score(
+            evento["direccion"],
+            [
+                (f"{evento['tipo']} confirmado", True, 25),
+                ("RSI favorable", True, 20),
+                ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
+                ("FVG alineado", bool(fvgs), 10),
+                ("Liquidez/volumen confirmado", confirma_liquidez, 10),
+                ("Sesion activa", not fuera_de_ventana, 10),
+            ]
+        )
+        titulo_aviso = f"{tipo_senal} {etiqueta_calidad_estructura} ({score_estructura}/100)"
+        print(f"Senal {evento['tipo']} {evento['direccion']} confirmada -- mandando senal limpia a Discord "
+              f"(senal {_contador_senales_hoy + 1} de {MAX_SENALES_ESTRUCTURA_POR_DIA} hoy).")
 
         if _descartada_por_score(f"Senal {evento['tipo']} {evento['direccion']}", score_estructura):
             return

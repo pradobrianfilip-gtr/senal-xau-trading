@@ -966,6 +966,38 @@ def _sesgo_por_apertura_sesiones(velas):
     return detalle, veredicto
 
 
+def _direccion_del_dia(velas):
+    """Direccion del dia de hoy (hora Madrid): apertura de la primera vela del
+    dia vs cierre de la ultima. 'alcista', 'bajista' o None si no hay velas
+    de hoy todavia."""
+    inicio_dia = datetime.now(MADRID_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    velas_de_hoy = []
+    for v in velas:
+        try:
+            if _parsear_timestamp_utc(v["t"]).astimezone(MADRID_TZ) >= inicio_dia:
+                velas_de_hoy.append(v)
+        except ValueError:
+            continue
+    if not velas_de_hoy:
+        return None
+    apertura, cierre = velas_de_hoy[0]["o"], velas_de_hoy[-1]["c"]
+    if cierre > apertura:
+        return "alcista"
+    if cierre < apertura:
+        return "bajista"
+    return None
+
+
+def _tendencia_combinada(tendencia_ema20, direccion_dia):
+    """Filtro de tendencia comun a los tres bots: la EMA20 diaria (tendencia
+    de fondo) y la direccion del dia tienen que COINCIDIR. Si no coinciden
+    devuelve 'mixta' y no se manda ninguna senal (dia de rebote/correccion,
+    tipicamente en rango). Si una de las dos no tiene dato, manda la otra."""
+    if tendencia_ema20 and direccion_dia:
+        return tendencia_ema20 if tendencia_ema20 == direccion_dia else "mixta"
+    return tendencia_ema20 or direccion_dia
+
+
 def _texto_veredicto_sesiones(detalle, veredicto):
     lineas = [f"{nombre}: {sesgo}" for nombre, sesgo in detalle.items()]
     return f"Veredicto del dia: {veredicto} ({' | '.join(lineas)})"
@@ -2089,13 +2121,17 @@ def revisar_senal():
         texto_veredicto = _texto_veredicto_sesiones(detalle_sesiones, veredicto_sesiones)
         print(texto_veredicto)
 
-        # Filtro de tendencia: EMA20 de velas DIARIAS, la misma fuente de
-        # verdad que BOT_ATLAS y fusion. Si el precio esta sobre la EMA20 solo
-        # se mandan BUY; si esta debajo, solo SELL (ningun tipo de senal se
-        # salta este filtro). Antes mandaba el veredicto por apertura de
-        # sesiones, y un mismo dia un bot daba BUY y otro SELL. El veredicto
-        # por sesiones se sigue imprimiendo solo como informacion.
-        tendencia_diaria = _obtener_tendencia_diaria(velas)
+        # Filtro de tendencia, comun a los tres bots: la EMA20 de velas
+        # DIARIAS y la direccion del dia tienen que coincidir. Ambas alcistas
+        # -> solo BUY; ambas bajistas -> solo SELL; si no coinciden ('mixta')
+        # no sale ninguna senal. Ningun tipo de senal se salta este filtro.
+        # El veredicto por sesiones se sigue imprimiendo solo como informacion.
+        tendencia_ema20 = _obtener_tendencia_diaria(velas)
+        direccion_dia = _direccion_del_dia(velas)
+        tendencia_diaria = _tendencia_combinada(tendencia_ema20, direccion_dia)
+        texto_tendencia = f"EMA20 diaria {tendencia_ema20 or 'sin dato'} / dia {direccion_dia or 'sin dato'}"
+        if tendencia_diaria == "mixta":
+            print(f"Tendencia mixta ({texto_tendencia}) -- hoy no se mandan senales.")
 
         def _a_favor_del_dia(direccion):
             return tendencia_diaria is None or tendencia_diaria == direccion
@@ -2103,7 +2139,7 @@ def revisar_senal():
         def _bloqueada_por_tendencia(nombre, direccion):
             if _a_favor_del_dia(direccion):
                 return False
-            print(f"{nombre} {direccion} descartado: va contra la tendencia EMA20 diaria ({tendencia_diaria}).")
+            print(f"{nombre} {direccion} descartado: tendencia {tendencia_diaria} ({texto_tendencia}).")
             return True
 
         # Confirmacion de liquidez/volumen sobre la vela que dispara la senal
@@ -2145,7 +2181,7 @@ def revisar_senal():
                 [
                     ("Patron chartista confirmado", True, 30),
                     ("RSI de reversion confirmado", True, 20),
-                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
+                    ("Tendencia diaria a favor (EMA20 + dia)", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2195,7 +2231,7 @@ def revisar_senal():
                 [
                     ("Patron de continuacion confirmado", True, 30),
                     ("RSI de impulso sano", rsi_confirma_cont, 20),
-                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
+                    ("Tendencia diaria a favor (EMA20 + dia)", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2242,7 +2278,7 @@ def revisar_senal():
                 barrido["direccion"],
                 [
                     ("Barrido de liquidez confirmado", True, 30),
-                    ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
+                    ("Tendencia diaria a favor (EMA20 + dia)", tendencia_diaria is not None, 15),
                     ("Liquidez/volumen confirmado", confirma_liquidez, 15),
                     ("Sesion activa", not fuera_de_ventana, 10),
                 ]
@@ -2359,7 +2395,7 @@ def revisar_senal():
             [
                 (f"{evento['tipo']} confirmado", True, 25),
                 ("RSI favorable", True, 20),
-                ("Tendencia EMA20 diaria a favor", tendencia_diaria is not None, 15),
+                ("Tendencia diaria a favor (EMA20 + dia)", tendencia_diaria is not None, 15),
                 ("FVG alineado", bool(fvgs), 10),
                 ("Liquidez/volumen confirmado", confirma_liquidez, 10),
                 ("Sesion activa", not fuera_de_ventana, 10),

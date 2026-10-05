@@ -1144,7 +1144,7 @@ def _actualizar_resultado_historial(id_senal, resultado):
         print(f"No se pudo actualizar el resultado en el historial (senal #{id_senal}): {e}")
 
 
-def _abrir_seguimiento_senal(direccion, entry, stop_loss, take_profit, ultima_vela_ts):
+def _abrir_seguimiento_senal(direccion, entry, stop_loss, take_profit, ultima_vela_ts, tipo_evento=""):
     """Registra una senal nueva como 'abierta' para que _seguir_senales_abiertas
     la vaya revisando en cada ciclo. Devuelve el id asignado."""
     global _siguiente_id_senal
@@ -1153,6 +1153,8 @@ def _abrir_seguimiento_senal(direccion, entry, stop_loss, take_profit, ultima_ve
     _senales_abiertas.append({
         "id": id_senal,
         "direccion": direccion,
+        "tipo_evento": tipo_evento,
+        "entry": entry,
         "stop_loss": stop_loss,
         "take_profit": take_profit,
         "abierta_en": datetime.now(timezone.utc).isoformat(),
@@ -1166,8 +1168,8 @@ def _seguir_senales_abiertas(velas):
     """En cada revision, compara las senales todavia abiertas contra las
     velas nuevas (desde la ultima vez que se revisaron) para ver si el
     precio ya toco el Take Profit o el Stop Loss. Si pasa demasiado tiempo
-    sin tocar ninguno, la marca como TIMEOUT. No manda nada a Discord --
-    solo actualiza el CSV de historial en silencio."""
+    sin tocar ninguno, la marca como TIMEOUT. Actualiza el CSV de historial
+    y avisa en Discord del resultado (como hace ATLAS)."""
     global _senales_abiertas
     if not _senales_abiertas:
         return
@@ -1216,6 +1218,7 @@ def _seguir_senales_abiertas(velas):
         if resultado:
             _actualizar_resultado_historial(senal["id"], resultado)
             print(f"Senal #{senal['id']} ({senal['direccion']}) resuelta: {resultado}")
+            enviar_discord(*_formatear_resultado(senal, resultado))
         else:
             senales_restantes.append(senal)
 
@@ -1224,6 +1227,25 @@ def _seguir_senales_abiertas(velas):
 
     _senales_abiertas = senales_restantes
     _guardar_senales_abiertas()
+
+
+def _formatear_resultado(senal, resultado):
+    """Titulo, texto y color del aviso de Discord cuando una senal toca el
+    Take Profit (WIN), el Stop Loss (LOSS) o expira sin tocar ninguno (TIMEOUT).
+    Las senales abiertas antes de este cambio no traen tipo_evento/entry."""
+    emoji = {"WIN": "\u2705", "LOSS": "\u274c", "TIMEOUT": "\u231b"}[resultado]
+    tipo = "BUY" if senal["direccion"] == "alcista" else "SELL"
+    evento = f" {senal['tipo_evento']}" if senal.get("tipo_evento") else ""
+    titulo = f"{emoji} {resultado} -- senal #{senal['id']} {tipo}{evento} (M15)"
+    detalle = {"WIN": "Toco el Take Profit.",
+               "LOSS": "Toco el Stop Loss.",
+               "TIMEOUT": f"No toco SL ni TP en {TIMEOUT_HORAS_SEGUIMIENTO} h -- se da por cerrada."}[resultado]
+    entry = senal.get("entry")
+    texto = (f"{detalle}\n"
+             + (f"Entry: {entry} | " if entry is not None else "")
+             + f"SL: {senal['stop_loss']} | TP: {senal['take_profit']}")
+    color = {"WIN": 0x2ECC71, "LOSS": 0xE74C3C, "TIMEOUT": 0x95A5A6}[resultado]
+    return titulo, texto, color
 
 
 # --- Estadisticas historicas: metricas agregadas sobre el historial ya
@@ -2198,7 +2220,8 @@ def revisar_senal():
                 color=color_patron
             )
             id_senal_patron = _abrir_seguimiento_senal(
-                patron["direccion"], patron["entry"], patron["stop_loss"], patron["take_profit"], velas[-1]["t"]
+                patron["direccion"], patron["entry"], patron["stop_loss"], patron["take_profit"], velas[-1]["t"],
+                tipo_evento=patron["nombre"]
             )
             _registrar_senal_historial(
                 id_senal_patron, patron["nombre"], patron["direccion"], patron["entry"],
@@ -2249,7 +2272,7 @@ def revisar_senal():
             )
             id_senal_cont = _abrir_seguimiento_senal(
                 patron_cont["direccion"], patron_cont["entry"], patron_cont["stop_loss"],
-                patron_cont["take_profit"], velas[-1]["t"]
+                patron_cont["take_profit"], velas[-1]["t"], tipo_evento=patron_cont["nombre"]
             )
             _registrar_senal_historial(
                 id_senal_cont, patron_cont["nombre"], patron_cont["direccion"], patron_cont["entry"],
@@ -2296,7 +2319,8 @@ def revisar_senal():
                 color=color_barrido
             )
             id_senal_barrido = _abrir_seguimiento_senal(
-                barrido["direccion"], barrido["entry"], barrido["stop_loss"], take_profit_barrido, velas[-1]["t"]
+                barrido["direccion"], barrido["entry"], barrido["stop_loss"], take_profit_barrido, velas[-1]["t"],
+                tipo_evento="Barrido de liquidez"
             )
             _registrar_senal_historial(
                 id_senal_barrido, "Barrido de liquidez", barrido["direccion"], barrido["entry"],
@@ -2418,7 +2442,8 @@ def revisar_senal():
 
         _contador_senales_hoy += 1
         id_senal_estructura = _abrir_seguimiento_senal(
-            evento["direccion"], precio_actual, stop_loss, take_profit, velas[-1]["t"]
+            evento["direccion"], precio_actual, stop_loss, take_profit, velas[-1]["t"],
+            tipo_evento=evento["tipo"]
         )
         _registrar_senal_historial(
             id_senal_estructura, evento["tipo"], evento["direccion"], precio_actual, stop_loss, take_profit,

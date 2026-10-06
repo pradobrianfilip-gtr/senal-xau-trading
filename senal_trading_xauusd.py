@@ -194,7 +194,13 @@ INTERVALO_REVISION_MINUTOS = 5
 
 # Granularidad de las velas que pedimos (15min = velas de 15 minutos)
 GRANULARIDAD = "15min"
-NUM_VELAS = 200  # cuantas velas pedimos cada vez (suficiente historial)
+# Estrategia activa (2026-10-06): "fvg" = estrategia FVG del usuario en modo EXPERIMENTAL
+# (para cuenta demo; ver la seccion "ESTRATEGIA FVG"); "clasica" = la logica anterior
+# (BOS/CHoCH, patrones, barridos...), que en el backtest de 10 anos pierde.
+ESTRATEGIA_SENALES = "fvg"
+# La FVG necesita ~5 dias de M15 (FVG de H1/M30 de 24 h + reconstruir el estado del dia);
+# sigue siendo 1 sola consulta a Twelve Data.
+NUM_VELAS = 500 if ESTRATEGIA_SENALES == "fvg" else 200
 
 # Estado en memoria: si estamos usando la fuente de respaldo ahora mismo,
 # para avisar solo una vez cuando cambia (no cada 5 minutos)
@@ -1248,34 +1254,312 @@ def _formatear_resultado(senal, resultado):
     return titulo, texto, color
 
 
+
+# ---------------------------------------------------------------------------
+# ESTRATEGIA FVG (EXPERIMENTAL, 2026-10-06) -- la estrategia del usuario, igual
+# que la variante V4 del laboratorio (BOT_ATLAS/backtest/estrategias.py --ronda 4):
+#  - Sesgo del dia: EMA20 diaria (con el precio actual) Y direccion del dia
+#    (apertura del dia en Madrid vs precio) deben coincidir; si no, no se opera.
+#  - Continuacion: hoy el precio ya cerro por fuera del maximo (o minimo) de
+#    ayer a favor del sesgo, hay FVG a favor sin rellenar en H1 (24 h) y en
+#    M30 (24 h), y el precio vuelve a un FVG M15 (de las ultimas 4 h, formado
+#    tras la ruptura) y una vela M15 cierra fuera de el a favor -> entrada.
+#  - Giro (barrido): una vela M15 perfora con la mecha el maximo/minimo de ayer
+#    y cierra dentro -> en las 8 velas siguientes, entrada en un FVG M15 en la
+#    direccion del giro (puede ir contra el sesgo).
+#  - SL: otro lado del FVG M15 + 0,5 x ATR(14) M15. TP: 2R. 07-20 UTC, max 3 al
+#    dia, una operacion a la vez (las que siguen abiertas cuentan).
+# En el backtest NO pasa con costes (pierde en 2012-17 y 2018-22): es un
+# experimento para observar en demo, NO para dinero real.
+# Se reconstruye en cada vela nueva rejugando las ~500 velas M15 (sin estado
+# en disco): asi un reinicio no pierde las rupturas/barridos del dia.
+# ---------------------------------------------------------------------------
+
+FVG_MAX_POR_DIA = 3
+FVG_VELAS_DIARIAS = 60
+_cache_diarias_fvg = {"velas": [], "momento": None}
+
+
+def _ep(t):
+    return int(_parsear_timestamp_utc(t).timestamp())
+
+
+def _fvg_ema(valores, n):
+    k, out, e = 2 / (n + 1), [], None
+    for v in valores:
+        e = v if e is None else v * k + e * (1 - k)
+        out.append(e)
+    return out
+
+
+def _fvg_atr(velas, n=14):
+    out, a, prev = [], None, None
+    for v in velas:
+        tr = v["h"] - v["l"] if prev is None else max(v["h"] - v["l"], abs(v["h"] - prev), abs(v["l"] - prev))
+        a = tr if a is None else (a * (n - 1) + tr) / n
+        out.append(a)
+        prev = v["c"]
+    return out
+
+
+def _fvg_agregar(velas, seg, dur=900):
+    """Velas mayores (UTC) desde M15 y, para cada M15 i, el indice de la ultima
+    vela mayor ya cerrada al cierre de i (-1 si ninguna)."""
+    mayores, idx, k = [], [], None
+    for v in velas:
+        t = v["ep"]
+        inicio = t - t % seg
+        if k is None or mayores[k]["ep"] != inicio:
+            mayores.append({"ep": inicio, "o": v["o"], "h": v["h"], "l": v["l"], "c": v["c"]})
+            k = len(mayores) - 1
+        else:
+            m = mayores[k]
+            m["h"], m["l"], m["c"] = max(m["h"], v["h"]), min(m["l"], v["l"]), v["c"]
+        idx.append(k if inicio + seg <= t + dur else k - 1)
+    return mayores, idx
+
+
+def _fvg_lista(vs):
+    """FVG de 3 velas: (j, dir, bajo, alto, j_relleno o None)."""
+    out = []
+    for j in range(2, len(vs)):
+        if vs[j]["l"] > vs[j - 2]["h"]:
+            d, lo, hi = 1, vs[j - 2]["h"], vs[j]["l"]
+        elif vs[j]["h"] < vs[j - 2]["l"]:
+            d, lo, hi = -1, vs[j]["h"], vs[j - 2]["l"]
+        else:
+            continue
+        relleno = None
+        for x in range(j + 1, min(len(vs), j + 400)):
+            if (d > 0 and vs[x]["l"] <= lo) or (d < 0 and vs[x]["h"] >= hi):
+                relleno = x
+                break
+        out.append((j, d, lo, hi, relleno))
+    return out
+
+
+def _fvg_hay(lista, k, d, ventana):
+    for j, dd, lo, hi, rel in reversed(lista):
+        if j > k:
+            continue
+        if j <= k - ventana:
+            break
+        if dd == d and (rel is None or rel > k):
+            return True
+    return False
+
+
+def fvg_simular(velas, diarias):
+    """Rejuega la estrategia sobre velas M15 CERRADAS (dicts con t,o,h,l,c) y
+    velas diarias CERRADAS (UTC). Devuelve las entradas: dicts con i, dir,
+    entry, sl, tp, tipo. Simula tambien la operacion abierta (una a la vez,
+    SL antes que TP, 72 h) para reproducir el backtest."""
+    for v in velas:
+        v.setdefault("ep", _ep(v["t"]))
+    for v in diarias:
+        v.setdefault("ep", _ep(v["t"]))
+    c = [v["c"] for v in velas]
+    a15 = _fvg_atr(velas)
+    horas = [datetime.fromtimestamp(v["ep"], timezone.utc) for v in velas]
+    import bisect
+    t_d = [v["ep"] for v in diarias]
+    kd = [bisect.bisect_right(t_d, v["ep"] + 900 - 86400) - 1 for v in velas]
+    ema_d = _fvg_ema([v["c"] for v in diarias], 20)
+    apertura_dia, dia_madrid = {}, []
+    for i, v in enumerate(velas):
+        dm = horas[i].astimezone(MADRID_TZ).date()
+        apertura_dia.setdefault(dm, v["o"])
+        dia_madrid.append(dm)
+    h1, k1 = _fvg_agregar(velas, 3600)
+    m30, k30 = _fvg_agregar(velas, 1800)
+    f_h1, f_m30 = _fvg_lista(h1), _fvg_lista(m30)
+    por_j = {}
+    for f in _fvg_lista(velas):
+        por_j.setdefault(f[0], []).append(f)
+
+    def sesgo(i):
+        k = kd[i]
+        if k < 25:
+            return 0
+        ema_ahora = c[i] * (2 / 21) + ema_d[k] * (1 - 2 / 21)
+        t_ema = 1 if c[i] > ema_ahora else -1
+        ap = apertura_dia[dia_madrid[i]]
+        t_dia = 1 if c[i] > ap else -1 if c[i] < ap else 0
+        return t_ema if t_ema == t_dia else 0
+
+    usados, por_dia, rupturas, barridos = set(), {}, {}, []
+
+    def entrada(i, d, desde_j, tipo):
+        o, h, l = velas[i]["o"], velas[i]["h"], velas[i]["l"]
+        for j in range(i - 1, max(i - 17, 1), -1):
+            if desde_j is not None and j < desde_j:
+                break
+            for (jj, dd, lo, hi, rel) in por_j.get(j, []):
+                if dd != d or (jj, dd) in usados or (rel is not None and rel <= i):
+                    continue
+                if d > 0 and l <= hi and c[i] > hi and c[i] > o:
+                    usados.add((jj, dd))
+                    sl = lo - 0.5 * a15[i]
+                elif d < 0 and h >= lo and c[i] < lo and c[i] < o:
+                    usados.add((jj, dd))
+                    sl = hi + 0.5 * a15[i]
+                else:
+                    continue
+                riesgo = abs(c[i] - sl)
+                if riesgo <= 0:
+                    return None
+                return {"i": i, "dir": d, "entry": c[i], "sl": sl, "tp": c[i] + 2 * riesgo * d,
+                        "tipo": tipo, "fvg": (lo, hi)}
+        return None
+
+    def preparar(i):
+        k = kd[i]
+        if k < 0:
+            return None, None
+        pdh, pdl = diarias[k]["h"], diarias[k]["l"]
+        dia = horas[i].date()
+        if c[i] > pdh:
+            rupturas.setdefault((dia, 1), i)
+        if c[i] < pdl:
+            rupturas.setdefault((dia, -1), i)
+        if velas[i]["h"] > pdh and c[i] < pdh:
+            barridos.append((i, -1))
+        if velas[i]["l"] < pdl and c[i] > pdl:
+            barridos.append((i, 1))
+        return pdh, pdl
+
+    def evaluar(i):
+        d = sesgo(i)
+        if d and _fvg_hay(f_h1, k1[i], d, 24) and _fvg_hay(f_m30, k30[i], d, 48):
+            r = rupturas.get((horas[i].date(), d))
+            if r is not None:
+                s = entrada(i, d, r, "continuacion")
+                if s:
+                    return s
+        for (ib, dd) in reversed(barridos):
+            if i - ib > 8:
+                break
+            if ib < i:
+                s = entrada(i, dd, ib, "barrido")
+                if s:
+                    return s
+        return None
+
+    entradas, pos = [], None
+    for i in range(len(velas)):
+        v = velas[i]
+        if pos is not None:
+            alc = pos["dir"] > 0
+            toca_sl = v["l"] <= pos["sl"] if alc else v["h"] >= pos["sl"]
+            toca_tp = v["h"] >= pos["tp"] if alc else v["l"] <= pos["tp"]
+            if toca_sl or toca_tp or v["ep"] - velas[pos["i"]]["ep"] > 72 * 3600:
+                pos = None
+            continue
+        if i < 200 or not (7 <= horas[i].hour < 20):
+            if i >= 200:
+                preparar(i)
+            continue
+        pdh, _ = preparar(i)
+        dia = horas[i].date()
+        if pdh is None or por_dia.get(dia, 0) >= FVG_MAX_POR_DIA:
+            continue
+        s = evaluar(i)
+        if s:
+            por_dia[dia] = por_dia.get(dia, 0) + 1
+            entradas.append(s)
+            pos = s
+    return entradas
+
+
+def _obtener_diarias_fvg():
+    """Velas diarias (UTC) CERRADAS con maximo/minimo, cacheadas 1 hora."""
+    ahora = datetime.now(timezone.utc)
+    momento = _cache_diarias_fvg["momento"]
+    if momento is not None and (ahora - momento).total_seconds() < 3600 and _cache_diarias_fvg["velas"]:
+        return _cache_diarias_fvg["velas"]
+    params = {"symbol": SIMBOLO, "interval": "1day", "outputsize": FVG_VELAS_DIARIAS,
+              "timezone": "UTC", "apikey": TWELVE_DATA_API_KEY}
+    r = requests.get(TWELVE_DATA_URL, params=params, timeout=15)
+    r.raise_for_status()
+    datos = r.json()
+    if datos.get("status") == "error":
+        raise RuntimeError(f"Twelve Data error (diarias FVG): {datos.get('message')}")
+    hoy = ahora.strftime("%Y-%m-%d")
+    velas = [{"t": v["datetime"][:10] + " 00:00:00", "o": float(v["open"]), "h": float(v["high"]),
+              "l": float(v["low"]), "c": float(v["close"])}
+             for v in reversed(datos.get("values", [])) if v["datetime"][:10] < hoy]
+    _cache_diarias_fvg.update(velas=velas, momento=ahora)
+    return velas
+
+
+def _hay_fvg_abierta():
+    return any(str(s.get("tipo_evento", "")).startswith("FVG") for s in _senales_abiertas)
+
+
+def _revisar_fvg(velas):
+    """Una vela M15 nueva cerrada: rejuega la estrategia y, si la ultima vela
+    da entrada, manda la senal experimental y abre su seguimiento."""
+    try:
+        diarias = _obtener_diarias_fvg()
+    except Exception as e:
+        print(f"FVG: sin velas diarias ({_sin_secretos(e)}) -- se salta esta vela.")
+        return
+    if len(diarias) < 26 or len(velas) < 250:
+        print(f"FVG: datos insuficientes (M15={len(velas)}, D1={len(diarias)}).")
+        return
+    copia = [dict(v) for v in velas]
+    entradas = fvg_simular(copia, [dict(v) for v in diarias])
+    if not entradas or entradas[-1]["i"] != len(copia) - 1:
+        return
+    if _hay_fvg_abierta():
+        print("FVG: hay una operacion FVG abierta -- se ignora la nueva entrada (una a la vez).")
+        return
+    s = entradas[-1]
+    direccion = "alcista" if s["dir"] > 0 else "bajista"
+    tipo_txt = "BUY" if s["dir"] > 0 else "SELL"
+    if s["tipo"] == "continuacion":
+        nivel = "maximo" if s["dir"] > 0 else "minimo"
+        motivo = (f"Continuacion: hoy el precio ya rompio el {nivel} de ayer a favor del sesgo del dia, "
+                  f"con FVG a favor en H1 y M30.")
+        tipo_evento = "FVG continuacion"
+    else:
+        nivel = "minimo" if s["dir"] > 0 else "maximo"
+        motivo = f"Giro: barrido del {nivel} de ayer (mecha fuera y cierre dentro)."
+        tipo_evento = "FVG barrido"
+    lo, hi = s["fvg"]
+    entry, sl, tp = round(s["entry"], 2), round(s["sl"], 2), round(s["tp"], 2)
+    enviar_discord(
+        f"🧪 FVG EXPERIMENTAL -- {tipo_txt} ({tipo_evento.split()[1]})",
+        f"**Entry:** {entry}\n**Stop Loss:** {sl} (tras el FVG M15 + 0,5xATR)\n"
+        f"**Take Profit:** {tp} (2R)\n\n"
+        f"{motivo}\nRetroceso y rechazo en el FVG M15 {round(lo, 2)} - {round(hi, 2)}.\n\n"
+        f"_Estrategia en PRUEBA: en el backtest no gana con costes. Usala solo en cuenta DEMO "
+        f"para ver como se comporta. No es asesoria financiera._",
+        color=0x7F77DD,
+    )
+    id_senal = _abrir_seguimiento_senal(direccion, entry, sl, tp, velas[-1]["t"], tipo_evento=tipo_evento)
+    _registrar_senal_historial(id_senal, tipo_evento, direccion, entry, sl, tp, None,
+                               extra="estrategia=fvg_experimental")
+
+
 # --- Estadisticas historicas: metricas agregadas sobre el historial ya
 # resuelto (WIN/LOSS/TIMEOUT), consultables con el comando de texto !stats
 # en el canal de Discord. No se recalculan solas ni se mandan solas -- solo
 # cuando alguien las pide. ---
 
-def _calcular_estadisticas_historial():
-    """Lee historial_senales.csv y calcula metricas agregadas: cuantas
-    senales se han mandado, cuantas se resolvieron, el porcentaje de
-    acierto, el Profit Factor y el drawdown maximo estimado.
-
-    Profit Factor y drawdown se calculan en multiplos de riesgo (R), no en
-    dinero real, porque el bot no conoce el tamano de posicion de cada
-    quien opera: cada perdida cuesta 1R (el riesgo hasta el Stop Loss) y
-    cada ganancia aporta su propio ratio recompensa:riesgo (la distancia
-    hasta el Take Profit dividida entre la distancia hasta el Stop Loss).
-    Devuelve None si el archivo no existe o tiene el formato antiguo (sin
-    columna 'resultado')."""
+def _calcular_estadisticas_historial(filtro=None):
+    """Lee historial_senales.csv y calcula metricas agregadas: senales,
+    resueltas, acierto, Profit Factor, resultado acumulado y drawdown maximo
+    (todo en multiplos de riesgo R: una perdida cuesta 1R y una ganancia su
+    recompensa/riesgo), y el desglose por tipo de evento. 'filtro' recibe la
+    fila del CSV y decide si cuenta. Devuelve None si el archivo no existe o
+    tiene el formato antiguo (sin columna 'resultado')."""
     if not os.path.isfile(ARCHIVO_HISTORIAL):
         return None
 
-    total = 0
-    wins = 0
-    losses = 0
-    timeouts = 0
-    pendientes = 0
-    suma_ganancias = 0.0
-    suma_perdidas = 0.0
-    curva_r = []  # equity acumulada en R, en el orden en que aparecen en el CSV
+    total = wins = losses = timeouts = pendientes = 0
+    suma_ganancias = suma_perdidas = 0.0
+    curva_r, por_tipo, primera_fecha = [], {}, None
 
     with open(ARCHIVO_HISTORIAL, "r", newline="", encoding="utf-8") as f:
         lector = csv.DictReader(f)
@@ -1284,9 +1568,12 @@ def _calcular_estadisticas_historial():
 
         equity = 0.0
         for fila in lector:
+            if filtro and not filtro(fila):
+                continue
             total += 1
+            primera_fecha = primera_fecha or fila.get("hora_madrid", "")
             resultado = fila.get("resultado", "PENDIENTE")
-
+            tipo = por_tipo.setdefault(fila.get("tipo_evento") or "?", {"wins": 0, "losses": 0, "r": 0.0})
             try:
                 entry = float(fila["entry"])
                 stop_loss = float(fila["stop_loss"])
@@ -1296,15 +1583,18 @@ def _calcular_estadisticas_historial():
 
             riesgo = abs(entry - stop_loss)
             recompensa = abs(take_profit - entry)
-
             if resultado == "WIN":
                 wins += 1
+                tipo["wins"] += 1
                 suma_ganancias += recompensa
                 if riesgo > 0:
                     equity += recompensa / riesgo
+                    tipo["r"] += recompensa / riesgo
                 curva_r.append(equity)
             elif resultado == "LOSS":
                 losses += 1
+                tipo["losses"] += 1
+                tipo["r"] -= 1
                 suma_perdidas += riesgo
                 equity -= 1
                 curva_r.append(equity)
@@ -1314,74 +1604,66 @@ def _calcular_estadisticas_historial():
                 pendientes += 1
 
     resueltas = wins + losses
-    win_rate = (wins / resueltas * 100) if resueltas else None
-    profit_factor = (suma_ganancias / suma_perdidas) if suma_perdidas > 0 else None
-
-    # Drawdown maximo: la mayor caida desde un pico de la curva de equity
-    # (en R) hasta el punto mas bajo visto despues de ese pico.
-    drawdown_maximo_r = 0.0
-    pico = 0.0
+    drawdown_maximo_r = pico = 0.0
     for valor in curva_r:
         pico = max(pico, valor)
         drawdown_maximo_r = max(drawdown_maximo_r, pico - valor)
 
     return {
-        "total": total,
-        "wins": wins,
-        "losses": losses,
-        "timeouts": timeouts,
-        "pendientes": pendientes,
-        "win_rate": win_rate,
-        "profit_factor": profit_factor,
+        "total": total, "wins": wins, "losses": losses, "timeouts": timeouts, "pendientes": pendientes,
+        "win_rate": (wins / resueltas * 100) if resueltas else None,
+        "profit_factor": (suma_ganancias / suma_perdidas) if suma_perdidas > 0 else None,
+        "resultado_r": curva_r[-1] if curva_r else 0.0,
         "drawdown_maximo_r": drawdown_maximo_r,
+        "por_tipo": por_tipo, "desde": primera_fecha,
     }
 
 
-def generar_reporte_estadisticas():
-    """Arma el embed que se manda como respuesta al comando !stats."""
-    stats = _calcular_estadisticas_historial()
+def _es_fvg(fila):
+    return (fila.get("tipo_evento") or "").startswith("FVG")
 
-    if stats is None:
+
+def _lineas_estadisticas(stats):
+    lineas = [
+        f"Senales: {stats['total']} (desde {stats['desde'] or '-'})",
+        f"WIN: {stats['wins']} | LOSS: {stats['losses']} | Timeout: {stats['timeouts']} | "
+        f"Pendientes: {stats['pendientes']}",
+        f"Acierto: {round(stats['win_rate'], 1)}%" if stats["win_rate"] is not None
+        else "Acierto: sin senales resueltas todavia",
+        f"Profit Factor: {round(stats['profit_factor'], 2)}" if stats["profit_factor"]
+        else "Profit Factor: sin perdidas aun",
+        f"Resultado acumulado: {stats['resultado_r']:+.2f}R | Drawdown maximo: {stats['drawdown_maximo_r']:.2f}R",
+    ]
+    for tipo, d in sorted(stats["por_tipo"].items(), key=lambda kv: -(kv[1]["wins"] + kv[1]["losses"])):
+        if d["wins"] + d["losses"]:
+            lineas.append(f"  {tipo}: {d['wins']} WIN / {d['losses']} LOSS ({d['r']:+.2f}R)")
+    return lineas
+
+
+def generar_reporte_estadisticas():
+    """Arma el embed que se manda como respuesta al comando !stats: la
+    estrategia FVG experimental por un lado y la logica clasica por otro."""
+    fvg = _calcular_estadisticas_historial(_es_fvg)
+    clasica = _calcular_estadisticas_historial(lambda fila: not _es_fvg(fila))
+    if fvg is None and clasica is None:
         return discord.Embed(
             title="Todavia no hay historial utilizable",
-            description=(
-                "No se encontro historial_senales.csv, o tiene un formato "
-                "antiguo sin la columna 'resultado'. En cuanto se mande y se "
-                "resuelva alguna senal nueva, las estadisticas apareceran aqui."
-            ),
-            color=0xEF9F27
-        )
+            description="En cuanto se mande y se resuelva alguna senal, las estadisticas apareceran aqui.",
+            color=0xEF9F27)
 
-    if stats["total"] == 0:
-        return discord.Embed(
-            title="Todavia no hay senales registradas",
-            description="En cuanto se mande la primera senal, aparecera aqui.",
-            color=0xEF9F27
-        )
+    partes = ["**🧪 Estrategia FVG (experimental, demo)**"]
+    partes += _lineas_estadisticas(fvg) if fvg and fvg["total"] else ["Sin senales FVG todavia."]
+    if clasica and clasica["total"]:
+        estado = "activa" if ESTRATEGIA_SENALES == "clasica" else "desactivada"
+        partes += ["", f"**Logica clasica ({estado})**"] + _lineas_estadisticas(clasica)
+    abiertas = [s_ for s_ in _senales_abiertas]
+    if abiertas:
+        partes += ["", "**Abiertas ahora:** " + ", ".join(
+            f"#{s_['id']} {'BUY' if s_['direccion'] == 'alcista' else 'SELL'} {s_.get('tipo_evento', '')}"
+            for s_ in abiertas)]
 
-    partes = [
-        f"Senales enviadas: {stats['total']}",
-        f"Resueltas: {stats['wins'] + stats['losses']} (WIN: {stats['wins']} / LOSS: {stats['losses']})",
-        f"Pendientes: {stats['pendientes']} | Timeout: {stats['timeouts']}",
-    ]
-
-    if stats["win_rate"] is not None:
-        partes.append(f"Porcentaje de acierto: {round(stats['win_rate'], 1)}%")
-    else:
-        partes.append("Porcentaje de acierto: sin senales resueltas todavia")
-
-    if stats["profit_factor"] is not None:
-        partes.append(f"Profit Factor: {round(stats['profit_factor'], 2)}")
-    else:
-        partes.append("Profit Factor: sin perdidas registradas todavia (no se puede calcular)")
-
-    partes.append(f"Drawdown maximo estimado: {round(stats['drawdown_maximo_r'], 2)}R")
-
-    embed = discord.Embed(
-        title="Estadisticas del sistema",
-        description="\n".join(partes),
-        color=0x5DCAA5
-    )
+    embed = discord.Embed(title="Estadisticas del bot de senales", description="\n".join(partes),
+                          color=0x5DCAA5)
     embed.set_footer(text=f"Hora Madrid: {hora_madrid()}")
     return embed
 
@@ -2118,6 +2400,10 @@ def revisar_senal():
         if timestamp_ultima_vela == _ultima_vela_procesada:
             return
         _ultima_vela_procesada = timestamp_ultima_vela
+
+        if ESTRATEGIA_SENALES == "fvg":
+            _revisar_fvg(velas)
+            return
 
         swings = _detectar_swings(velas)
         serie_rsi = _calcular_serie_rsi([v["c"] for v in velas])

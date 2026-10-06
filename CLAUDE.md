@@ -37,6 +37,17 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-10-06 — **Estrategia FVG del usuario, en modo EXPERIMENTAL** (`ESTRATEGIA_SENALES =
+  "fvg"`, para cuenta demo; la lógica clásica queda desactivada y vuelve con `"clasica"`):
+  sesgo del día (EMA20 diaria + dirección del día) → FVG a favor sin rellenar en H1 y M30
+  (24 h) → entrada al rechazo de un FVG M15 (últimas 4 h). Continuación tras cerrar fuera del
+  máximo/mínimo de ayer y giro tras un barrido de esos niveles. SL tras el FVG M15 + 0,5×ATR,
+  TP 2R, 07–20 UTC, máx. 3 al día, una a la vez. Es la variante V4 del laboratorio
+  (`BOT_ATLAS/backtest`, ronda 4), que **no pasa con costes** (−0,05/−0,10 R en 2012–17 y
+  2018–22; +0,23 R en 2026): se deja correr para observarla en vivo — decisión del usuario.
+- 2026-10-06 — **`!stats` como el de ATLAS**: separa la estrategia FVG de la clásica, con
+  acierto, Profit Factor, resultado acumulado y drawdown en R, desglose por tipo de evento y
+  señales abiertas — decisión del usuario.
 - 2026-09-30 — **Temporalidad M15** (`GRANULARIDAD = "15min"`). Escalera ATLAS M5 /
   señales M15 / fusión M30 para que dos bots no analicen la misma temporalidad — decisión del usuario.
 - 2026-09-30 — **Score mínimo 70**: por debajo la señal se descarta y **no se envía**
@@ -75,8 +86,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
 - Redondear el Entry a 2 decimales en los mensajes (a veces sale p. ej. 4152.53509).
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
-- El `Dockerfile` no tiene `ENV PYTHONUNBUFFERED=1` (fusión y ATLAS sí): sin él, los
-  `print` pueden tardar en verse en los logs de Northflank.
+- Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
+  al backtest.
 
 ## Arquitectura
 
@@ -84,9 +95,13 @@ Un solo archivo: `senal_trading_xauusd.py` (bot de Discord con `discord.py`, buc
 `INTERVALO_REVISION_MINUTOS` = 5 min, servidor HTTP de salud en `PORT`).
 
 Flujo de `revisar_senal()`: fin de semana / horario → velas M15 (Twelve Data, respaldo
-Alpha Vantage) → solo cerradas → `_seguir_senales_abiertas()` (WIN/LOSS/TIMEOUT y aviso a
-Discord) → si hay vela nueva: tendencia combinada → patrones, banderas, barrido,
-estructura → score → enviar + abrir seguimiento + CSV.
+Alpha Vantage; 500 velas con la FVG) → solo cerradas → `_seguir_senales_abiertas()`
+(WIN/LOSS/TIMEOUT y aviso a Discord) → si hay vela nueva: con la FVG, `_revisar_fvg()`
+(rejuega `fvg_simular()` sobre las 500 velas + diarias cacheadas 1 h y, si la última vela da
+entrada y no hay otra FVG abierta, envía "🧪 FVG EXPERIMENTAL" + seguimiento + CSV); con la
+clásica, tendencia combinada → patrones, banderas, barrido, estructura → score → enviar.
+`fvg_simular()` da exactamente las mismas entradas que el laboratorio (verificado en
+2019–2020 y 2026).
 
 Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 - `historial_senales.csv` — una fila por señal con `resultado` PENDIENTE/WIN/LOSS/TIMEOUT.
@@ -123,3 +138,5 @@ El bot necesita el intent **Message Content** (para `!stats`).
 - 2026-10-05 — PR #4: filtro de tendencia EMA20 diaria + dirección del día (deben coincidir).
 - 2026-10-05 — PR #5: aviso en Discord cuando una señal toca TP, SL o expira.
 - 2026-10-05 — Creado este `CLAUDE.md`.
+- 2026-10-06 — Estrategia FVG experimental (ESTRATEGIA_SENALES = "fvg"), `!stats` como el de
+  ATLAS y `PYTHONUNBUFFERED=1` en el Dockerfile.

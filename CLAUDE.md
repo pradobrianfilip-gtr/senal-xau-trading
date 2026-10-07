@@ -42,9 +42,14 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   sesgo del día (EMA20 diaria + dirección del día) → FVG a favor sin rellenar en H1 y M30
   (24 h) → entrada al rechazo de un FVG M15 (últimas 4 h). Continuación tras cerrar fuera del
   máximo/mínimo de ayer y giro tras un barrido de esos niveles. SL tras el FVG M15 + 0,5×ATR,
-  TP 2R, 07–20 UTC, máx. 3 al día, una a la vez. Es la variante V4 del laboratorio
+  TP 2R, 07–20 UTC, máx. 1 al día (antes 3; ver abajo), una a la vez. Es la variante V4 del laboratorio
   (`BOT_ATLAS/backtest`, ronda 4), que **no pasa con costes** (−0,05/−0,10 R en 2012–17 y
   2018–22; +0,23 R en 2026): se deja correr para observarla en vivo — decisión del usuario.
+- 2026-10-07 — **FVG: máximo 1 señal al día** (`FVG_MAX_POR_DIA = 1`; como mucho 5 por
+  semana; antes 3 al día). Es un tope, no un mínimo: los días sin condiciones no hay señal.
+  Backtest con el tope: ~2,4 señales por semana (señal en ~48 % de los días), −0,12 R en
+  2012–17, −0,03 R en 2018–22, +0,04 R en 2026 (con 3/día: −0,06 / −0,09 / +0,23 R) —
+  decisión del usuario.
 - 2026-10-06 — **`!stats` como el de ATLAS**: separa la estrategia FVG de la clásica, con
   acierto, Profit Factor, resultado acumulado y drawdown en R, desglose por tipo de evento y
   señales abiertas — decisión del usuario.
@@ -140,3 +145,4 @@ El bot necesita el intent **Message Content** (para `!stats`).
 - 2026-10-05 — Creado este `CLAUDE.md`.
 - 2026-10-06 — Estrategia FVG experimental (ESTRATEGIA_SENALES = "fvg"), `!stats` como el de
   ATLAS y `PYTHONUNBUFFERED=1` en el Dockerfile.
+- 2026-10-07 — FVG experimental: máximo 1 señal al día.

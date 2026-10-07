@@ -1267,7 +1267,7 @@ def _formatear_resultado(senal, resultado):
 #  - Giro (barrido): una vela M15 perfora con la mecha el maximo/minimo de ayer
 #    y cierra dentro -> en las 8 velas siguientes, entrada en un FVG M15 en la
 #    direccion del giro (puede ir contra el sesgo).
-#  - SL: otro lado del FVG M15 + 0,5 x ATR(14) M15. TP: 2R. 07-20 UTC, max 3 al
+#  - SL: otro lado del FVG M15 + 0,5 x ATR(14) M15. TP: 2R. 07-20 UTC, max 1 al
 #    dia, una operacion a la vez (las que siguen abiertas cuentan).
 # En el backtest NO pasa con costes (pierde en 2012-17 y 2018-22): es un
 # experimento para observar en demo, NO para dinero real.
@@ -1275,7 +1275,7 @@ def _formatear_resultado(senal, resultado):
 # en disco): asi un reinicio no pierde las rupturas/barridos del dia.
 # ---------------------------------------------------------------------------
 
-FVG_MAX_POR_DIA = 3
+FVG_MAX_POR_DIA = 1  # decision del usuario (2026-10-07): 1 al dia -> como mucho 5 por semana
 FVG_VELAS_DIARIAS = 60
 _cache_diarias_fvg = {"velas": [], "momento": None}
 

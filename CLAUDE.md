@@ -18,7 +18,8 @@ El usuario no debería tener que repetir nada que ya esté escrito aquí.
 ## Objetivo del bot
 
 Bot de señales **solo técnico** para **XAU/USD** en velas de **15 minutos (M15)**, que
-publica en **Discord** y corre en **Northflank**.
+publica en **Discord** y corre en **Northflank**. Desde el 2026-10-08 lleva además, en
+prueba, una segunda estrategia para el **Nasdaq (USTEC)**: la "zona de ruido" (ver Decisiones).
 
 Forma parte de una **escalera de temporalidades** con otros dos bots del usuario:
 
@@ -37,6 +38,22 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-10-08 — **Nasdaq (USTEC) "zona de ruido", EN PRUEBA (demo), conviviendo con la FVG
+  del oro** (`NASDAQ_ACTIVO = True`). Estudio *Beat the Market* (Zarattini, Aziz y Barbon,
+  2024), versión banda + VWAP, replicada en GitHub (`Chris-ZZX/spy-intraday-momentum`,
+  `codecat-ops/zarattini-2024-momentum-spy`…). Reglas: ruido a cada hora = media de
+  |cierre a esa hora / apertura − 1| de las 14 sesiones anteriores; UB = máx(apertura, cierre
+  de ayer)×(1+ruido), LB = mín(apertura, cierre de ayer)×(1−ruido); solo a las :00/:30 NY
+  desde las 10:00, con la vela de 5 min recién cerrada: cierre > máx(UB, VWAP) → comprado,
+  < mín(LB, VWAP) → vendido, entre medias → fuera; todo se cierra a las 16:00 NY (22:00
+  Madrid). Datos del ETF **QQQ** (Twelve Data); avisos con distancias en % para aplicarlas a
+  USTEC: 📈🟢/🔴 entrada con stop de referencia, 📈🔁 mover stop (si cambia ≥ 0,05 %), 📈⏹️
+  cerrar con resultado en %. Laboratorio (2026-10-08, NAS100 Oanda 2010–20 y 2026, coste
+  0,8 pb): +4,9 / +5,6 / +5,3 % al año sin apalancar, ~4 operaciones por semana, acierto
+  ~37 %; las 9 combinaciones de ventana/multiplicador probadas ganan en 2010–15 y 2016–20.
+  El **S&P 500 se descartó** (+5,0 / +1,0 / −6,2 %: la ventaja se ha apagado) y también el
+  ORB de 5 min (gana solo en algunos años). Margen fino: con un spread de USTEC de más de
+  ~3 puntos la ventaja casi desaparece — decisión del usuario.
 - 2026-10-06 — **Estrategia FVG del usuario, en modo EXPERIMENTAL** (`ESTRATEGIA_SENALES =
   "fvg"`, para cuenta demo; la lógica clásica queda desactivada y vuelve con `"clasica"`):
   sesgo del día (EMA20 diaria + dirección del día) → FVG a favor sin rellenar en H1 y M30
@@ -93,6 +110,11 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
 - Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
   al backtest.
+- Nasdaq: confirmar en los logs que Twelve Data da el QQQ con la clave gratis (si no, el
+  bot avisa una vez en Discord: "📈 NASDAQ: sin datos del QQQ"); comprobar el spread real de
+  USTEC en el bróker de 15:30 a 22:00 Madrid; comparar `!stats` con el laboratorio
+  (+0,02 % por operación de media, unas 4 por semana). Volver a probar el S&P 500 con datos
+  nuevos dentro de unos meses.
 
 ## Arquitectura
 
@@ -108,10 +130,22 @@ clásica, tendencia combinada → patrones, banderas, barrido, estructura → sc
 `fvg_simular()` da exactamente las mismas entradas que el laboratorio (verificado en
 2019–2020 y 2026).
 
+Nasdaq: bucle propio `revisar_nasdaq_periodicamente` (cada 5 min, lun–vie, 10:00–16:30 NY,
+independiente del horario y de la pausa del oro). `revisar_nasdaq()` solo pide datos cuando
+cerró una vela de decisión (:00/:30) o terminó la sesión (~13 consultas al día: 1300 velas
+de 5 min del QQQ en hora de Nueva York), rejuega el día con `ruido_simular_dia()` y manda
+los avisos que falten. Solo guarda qué avisos se mandaron (`nasdaq_estado.json`): tras un
+reinicio sigue avisando de los stops y del cierre de una operación ya avisada, y no avisa
+entradas de hace más de 20 min. Cada operación cerrada va a `historial_nasdaq.csv`
+(resultado en %). `ruido_simular_dia()` da las mismas operaciones que el laboratorio
+(1266 / 907 / 95 en 2010–15 / 2016–20 / 2026).
+
 Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 - `historial_senales.csv` — una fila por señal con `resultado` PENDIENTE/WIN/LOSS/TIMEOUT.
 - `senales_abiertas.json` — señales que aún no tocaron SL/TP (sobrevive a reinicios si
   el disco es persistente).
+- `historial_nasdaq.csv` — una fila por operación del Nasdaq cerrada (entrada, salida, % y motivo).
+- `nasdaq_estado.json` — avisos del Nasdaq ya mandados hoy.
 
 ## Configuración / variables de entorno
 
@@ -123,6 +157,7 @@ Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 | `ALPHA_VANTAGE_API_KEY` | Respaldo de velas | No |
 | `TWELVE_DATA_BACKUP_API_KEY` | Segunda clave de Twelve Data | No |
 | `ARCHIVO_HISTORIAL` / `ARCHIVO_SENALES_ABIERTAS` | Rutas de los archivos de estado | No |
+| `ARCHIVO_HISTORIAL_NASDAQ` / `ARCHIVO_ESTADO_NASDAQ` | Rutas de los archivos del Nasdaq | No |
 | `PORT` | Puerto del health check (8080) | No |
 
 El bot necesita el intent **Message Content** (para `!stats`).
@@ -146,3 +181,5 @@ El bot necesita el intent **Message Content** (para `!stats`).
 - 2026-10-06 — Estrategia FVG experimental (ESTRATEGIA_SENALES = "fvg"), `!stats` como el de
   ATLAS y `PYTHONUNBUFFERED=1` en el Dockerfile.
 - 2026-10-07 — FVG experimental: máximo 1 señal al día.
+- 2026-10-08 — Nasdaq (USTEC) "zona de ruido" en prueba, con datos del QQQ, avisos propios
+  (📈) y apartado en `!stats`.

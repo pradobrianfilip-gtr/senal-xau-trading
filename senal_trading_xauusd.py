@@ -1570,7 +1570,7 @@ ARCHIVO_HISTORIAL_NASDAQ = os.environ.get("ARCHIVO_HISTORIAL_NASDAQ", "historial
 ARCHIVO_ESTADO_NASDAQ = os.environ.get("ARCHIVO_ESTADO_NASDAQ", "nasdaq_estado.json")
 CAMPOS_HISTORIAL_NASDAQ = ["fecha_ny", "direccion", "hora_entrada", "entrada", "hora_salida", "salida",
                            "resultado_pct", "motivo_salida"]
-_estado_nasdaq = {"fecha": None, "avisados": [], "ultima_decision": None, "error_avisado": False}
+_estado_nasdaq = {"fecha": None, "avisados": [], "avisados_r1": [], "ultima_decision": None, "error_avisado": False}
 _lock_nasdaq = threading.Lock()
 
 
@@ -1724,10 +1724,187 @@ def _formatear_evento_nasdaq(ev):
             0x2ECC71 if pct > 0 else 0xE74C3C)
 
 
+# ---------------------------------------------------------------------------
+# NASDAQ R1 (EN PRUEBA, 2026-10-09) -- estrategia del video de @hobbiecode que
+# el usuario mando, SOLO COMPRAS (el espejo en ventas bajo el S1 pierde):
+#  - Pivotes clasicos con la sesion de ayer del QQQ (09:30-16:00):
+#    P = (max + min + cierre) / 3, R1 = 2P - min.
+#  - Primera vez en el dia que 3 velas M15 seguidas (desde las 09:30 NY) tienen
+#    el minimo por encima del R1 -> COMPRA al cierre de la tercera (la tercera
+#    tiene que cerrar como tarde a las 15:00 NY). Una al dia como mucho.
+#  - SL -0,2 % (los "30 puntos" del video con el Nasdaq a 15.000), TP +0,5 %
+#    (2,5:1). Si no toca ninguno, se cierra al final de la sesion.
+# Laboratorio (NAS100 2010-15 / 2016-20 / 2026, pivotes de la sesion, coste
+# 0,8 pb): +0,12 / +0,19 / +0,27 R por operacion, ~1 por semana, 11/11 anos
+# positivos (pivotes del dia completo). Usa las mismas velas del QQQ que la
+# zona de ruido (sin consultas extra). Resultados en R.
+# ---------------------------------------------------------------------------
+
+NASDAQ_R1_ACTIVO = True
+NASDAQ_R1_VELAS_SEGUIDAS = 3
+NASDAQ_R1_SL_PCT = 0.2
+NASDAQ_R1_TP_PCT = 0.5
+NASDAQ_R1_ULTIMA_ENTRADA = 900  # la tercera vela M15 cierra como tarde a las 15:00 NY
+ARCHIVO_HISTORIAL_NASDAQ_R1 = os.environ.get("ARCHIVO_HISTORIAL_NASDAQ_R1", "historial_nasdaq_r1.csv")
+CAMPOS_HISTORIAL_NASDAQ_R1 = ["fecha_ny", "hora_entrada", "entrada", "stop_loss", "take_profit", "r1",
+                              "hora_salida", "salida", "resultado", "resultado_r", "resultado_pct"]
+
+
+def r1_simular_dia(sesion_ayer, barras_hoy, sesion_terminada):
+    """Rejuega la estrategia R1 en la sesion de hoy (barras de 5 min, ver
+    ruido_simular_dia). Devuelve [entrada] o [entrada, salida]."""
+    if not sesion_ayer or not barras_hoy or barras_hoy[0]["m"] != 570:
+        return []
+    alto = max(b["h"] for b in sesion_ayer)
+    bajo = min(b["l"] for b in sesion_ayer)
+    pivote = (alto + bajo + sesion_ayer[-1]["c"]) / 3
+    r1 = 2 * pivote - bajo
+    por_inicio = {b["m"]: b for b in barras_hoy}
+    m15 = []
+    for inicio in range(570, 960, 15):
+        trozo = [por_inicio.get(inicio + k) for k in (0, 5, 10)]
+        if any(x is None for x in trozo):
+            break  # solo velas M15 completas y seguidas
+        m15.append({"m": inicio, "l": min(x["l"] for x in trozo), "c": trozo[-1]["c"]})
+    n = NASDAQ_R1_VELAS_SEGUIDAS
+    for i in range(n - 1, len(m15)):
+        fin = m15[i]["m"] + 15
+        if fin > NASDAQ_R1_ULTIMA_ENTRADA:
+            break
+        if all(v["l"] > r1 for v in m15[i - n + 1:i + 1]):
+            entrada = m15[i]["c"]
+            sl = entrada * (1 - NASDAQ_R1_SL_PCT / 100)
+            tp = entrada * (1 + NASDAQ_R1_TP_PCT / 100)
+            eventos = [{"tipo": "entrada", "m": fin, "precio": entrada, "sl": sl, "tp": tp, "r1": r1}]
+            for b in barras_hoy:
+                if b["m"] < fin:
+                    continue
+                if b["l"] <= sl:  # si la misma vela toca SL y TP, se asume el SL (peor caso)
+                    salida, resultado = min(b["o"], sl), "SL"
+                elif b["h"] >= tp:
+                    salida, resultado = tp, "TP"
+                else:
+                    continue
+                eventos.append({"tipo": "salida", "m": b["m"] + 5, "precio": salida, "resultado": resultado,
+                                "entrada": entrada, "sl": sl, "tp": tp, "m_entrada": fin})
+                return eventos
+            if sesion_terminada:
+                eventos.append({"tipo": "salida", "m": barras_hoy[-1]["m"] + 5, "precio": barras_hoy[-1]["c"],
+                                "resultado": "CIERRE", "entrada": entrada, "sl": sl, "tp": tp, "m_entrada": fin})
+            return eventos
+    return []
+
+
+def _ruido_comprado_en(eventos_ruido, minuto):
+    """True si la zona de ruido tiene una compra abierta en ese minuto."""
+    abierta = False
+    for ev in eventos_ruido:
+        if ev["m"] > minuto:
+            break
+        if ev["tipo"] == "entrada":
+            abierta = ev["dir"] > 0
+        elif ev["tipo"] == "salida":
+            abierta = False
+    return abierta
+
+
+def _formatear_evento_r1(ev, coincide_ruido=False):
+    pie = ("\n\n_Estrategia en PRUEBA (cuenta DEMO), solo compras. Senal calculada con el ETF QQQ. "
+           "No es asesoria financiera._")
+    hora_txt = _hora_ny_madrid(ev["m"])
+    if ev["tipo"] == "entrada":
+        aviso = ("\n\nℹ️ La zona de ruido (📈) tambien esta comprada ahora: es la misma idea, "
+                 "no dupliques la operacion." if coincide_ruido else "")
+        return ("📊🟢 NASDAQ R1 (USTEC) -- COMPRA",
+                f"**Comprar ahora** ({hora_txt}): 3 velas M15 seguidas con el minimo por encima del R1.\n"
+                f"**Stop Loss:** {NASDAQ_R1_SL_PCT:.2f} % por debajo de tu entrada en USTEC\n"
+                f"**Take Profit:** {NASDAQ_R1_TP_PCT:.2f} % por encima (2,5:1)\n"
+                f"Si no toca ninguno, se cierra al final de la sesion (22:00 Madrid).\n"
+                f"QQQ: entrada {ev['precio']:.2f} | SL {ev['sl']:.2f} | TP {ev['tp']:.2f} | R1 {ev['r1']:.2f}"
+                + aviso + pie, 0x8E44AD)
+    r = (ev["precio"] - ev["entrada"]) / (ev["entrada"] - ev["sl"])
+    pct = _pct(ev["precio"], ev["entrada"])
+    if ev["resultado"] == "TP":
+        titulo, detalle, color = f"📊✅ NASDAQ R1 -- TAKE PROFIT {r:+.1f} R", "Toco el Take Profit.", 0x2ECC71
+    elif ev["resultado"] == "SL":
+        titulo, detalle, color = f"📊❌ NASDAQ R1 -- STOP LOSS {r:+.1f} R", "Toco el Stop Loss.", 0xE74C3C
+    else:
+        titulo = f"📊⏹️ NASDAQ R1 -- CERRAR la compra {r:+.2f} R"
+        detalle = "Cierre de la sesion sin tocar SL ni TP: **cierra la compra ahora**."
+        color = 0x2ECC71 if r > 0 else 0xE74C3C
+    return (titulo, f"{detalle} ({hora_txt})\nQQQ: entrada {ev['entrada']:.2f} ({_hhmm(ev['m_entrada'])} NY) "
+                    f"-> salida {ev['precio']:.2f}: **{r:+.2f} R** ({pct:+.2f} %, sin contar el spread)." + pie, color)
+
+
+def _registrar_operacion_r1(fecha, entrada_ev, ev):
+    r = (ev["precio"] - ev["entrada"]) / (ev["entrada"] - ev["sl"])
+    try:
+        existe = os.path.isfile(ARCHIVO_HISTORIAL_NASDAQ_R1)
+        with open(ARCHIVO_HISTORIAL_NASDAQ_R1, "a", newline="", encoding="utf-8") as f:
+            escritor = csv.writer(f)
+            if not existe:
+                escritor.writerow(CAMPOS_HISTORIAL_NASDAQ_R1)
+            escritor.writerow([fecha, _hhmm(ev["m_entrada"]), round(ev["entrada"], 2), round(ev["sl"], 2),
+                               round(ev["tp"], 2), round(entrada_ev["r1"], 2), _hhmm(ev["m"]), round(ev["precio"], 2),
+                               ev["resultado"], round(r, 3), round(_pct(ev["precio"], ev["entrada"]), 3)])
+    except Exception as e:
+        print(f"Nasdaq R1: no se pudo escribir el historial ({e})")
+    return r
+
+
+def _procesar_r1(sesiones, barras_hoy, terminada, minuto, hoy, eventos_ruido):
+    if not NASDAQ_R1_ACTIVO or len(sesiones) < 2:
+        return
+    eventos = r1_simular_dia(sesiones[-2][1], barras_hoy, terminada)
+    avisados = set(_estado_nasdaq.get("avisados_r1", []))
+    for ev in eventos:
+        clave = f"{ev['tipo']}|{ev['m']}"
+        if clave in avisados:
+            continue
+        avisados.add(clave)
+        if ev["tipo"] == "entrada":
+            if minuto - ev["m"] > NASDAQ_MAX_RETRASO_MIN:
+                print(f"Nasdaq R1: entrada de las {_hhmm(ev['m'])} NY demasiado antigua -- no se avisa.")
+                avisados.add("omitida")
+                continue
+            enviar_discord(*_formatear_evento_r1(ev, _ruido_comprado_en(eventos_ruido, ev["m"])))
+        elif "omitida" not in avisados:
+            r = _registrar_operacion_r1(hoy, eventos[0], ev)
+            print(f"Nasdaq R1: {ev['resultado']} {r:+.2f} R")
+            enviar_discord(*_formatear_evento_r1(ev))
+    _estado_nasdaq["avisados_r1"] = sorted(avisados)
+
+
+def _estadisticas_nasdaq_r1():
+    if not os.path.isfile(ARCHIVO_HISTORIAL_NASDAQ_R1):
+        return None
+    with open(ARCHIVO_HISTORIAL_NASDAQ_R1, "r", newline="", encoding="utf-8") as f:
+        filas = list(csv.DictReader(f))
+    rs = []
+    for fila in filas:
+        try:
+            rs.append(float(fila["resultado_r"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+    if not rs:
+        return None
+    equity = pico = caida = 0.0
+    for r in rs:
+        equity += r
+        pico = max(pico, equity)
+        caida = max(caida, pico - equity)
+    ganancias, perdidas = sum(r for r in rs if r > 0), -sum(r for r in rs if r < 0)
+    return {"n": len(rs), "acierto": sum(r > 0 for r in rs) / len(rs) * 100, "total": equity,
+            "media": equity / len(rs), "caida": caida, "pf": ganancias / perdidas if perdidas > 0 else None,
+            "tp": sum(f.get("resultado") == "TP" for f in filas), "sl": sum(f.get("resultado") == "SL" for f in filas),
+            "desde": filas[0].get("fecha_ny", "-")}
+
+
 def revisar_nasdaq():
-    """Cada 5 min (lun-vie): si ya cerro una vela de decision nueva (:00/:30 NY
-    desde las 10:00) o termino la sesion, pide las velas del QQQ, rejuega el dia
-    y manda los avisos que falten. Como mucho ~14 consultas al dia."""
+    """Cada 5 min (lun-vie): si ya cerro una vela M15 nueva del QQQ (:00/:15/:30/:45
+    NY desde las 10:00) o termino la sesion, pide las velas de 5 min, rejuega el dia
+    y manda los avisos que falten de la zona de ruido (decide a las :00/:30) y de la
+    estrategia R1 (velas M15). Como mucho ~26 consultas al dia."""
     if not NASDAQ_ACTIVO:
         return
     with _lock_nasdaq:
@@ -1739,8 +1916,8 @@ def revisar_nasdaq():
             return
         hoy = ahora.date().isoformat()
         if _estado_nasdaq.get("fecha") != hoy:
-            _estado_nasdaq.update(fecha=hoy, avisados=[], ultima_decision=None)
-        decision = min(minuto - minuto % 30, 960)
+            _estado_nasdaq.update(fecha=hoy, avisados=[], avisados_r1=[], ultima_decision=None)
+        decision = min(minuto - minuto % 15, 960)
         if _estado_nasdaq.get("ultima_decision") == decision or minuto == decision:
             return  # ya procesada, o vela recien cerrada (se da 1 min a Twelve Data para cerrarla)
         try:
@@ -1748,7 +1925,7 @@ def revisar_nasdaq():
         except Exception as e:
             error = _sin_secretos(e)
             print(f"Nasdaq: no se pudieron pedir las velas de {NASDAQ_SIMBOLO} ({error})")
-            _estado_nasdaq["ultima_decision"] = decision  # se reintenta en la siguiente :00/:30 (no gastar cuota)
+            _estado_nasdaq["ultima_decision"] = decision  # se reintenta en la siguiente vela M15 (no gastar cuota)
             if not _estado_nasdaq.get("error_avisado"):
                 _estado_nasdaq["error_avisado"] = True
                 enviar_discord("📈 NASDAQ: sin datos del QQQ",
@@ -1794,6 +1971,7 @@ def revisar_nasdaq():
                 pct = _registrar_operacion_nasdaq(hoy, ev)
                 print(f"Nasdaq: cierre {'compra' if ev['dir'] > 0 else 'venta'} {pct:+.2f} %")
             enviar_discord(*_formatear_evento_nasdaq(ev))
+        _procesar_r1(sesiones, barras_hoy, terminada, minuto, hoy, eventos)
         _estado_nasdaq.update(avisados=sorted(avisados), ultima_decision=decision)
         _guardar_estado_nasdaq()
 
@@ -1971,6 +2149,19 @@ def generar_reporte_estadisticas():
         if abierta:
             partes.append(f"Abierta ahora: {abierta}")
         partes.append("_Resultados en % del precio (QQQ), sin contar el spread._")
+    if NASDAQ_ACTIVO and NASDAQ_R1_ACTIVO:
+        r1 = _estadisticas_nasdaq_r1()
+        partes += ["", "**📊 Nasdaq (USTEC) -- R1, solo compras (prueba, demo)**"]
+        if r1:
+            partes += [
+                f"Operaciones: {r1['n']} (desde {r1['desde']}) | TP: {r1['tp']} | SL: {r1['sl']} | "
+                f"Cierre de sesion: {r1['n'] - r1['tp'] - r1['sl']}",
+                f"Acierto: {r1['acierto']:.1f}% | Media: {r1['media']:+.2f} R por operacion",
+                f"Resultado acumulado: {r1['total']:+.2f} R | Peor caida: {r1['caida']:.2f} R"
+                + (f" | Profit Factor: {r1['pf']:.2f}" if r1["pf"] else ""),
+            ]
+        else:
+            partes.append("Sin operaciones cerradas todavia.")
 
     embed = discord.Embed(title="Estadisticas del bot de senales", description="\n".join(partes),
                           color=0x5DCAA5)
@@ -3247,6 +3438,8 @@ async def on_ready():
                 f"para revisar el estado cuando quieras, sin esperar."
                 + ("\n📈 Y en prueba: **Nasdaq (USTEC), zona de ruido** -- avisos de 15:30 a 22:00 "
                    "Madrid (sesion de Wall Street)." if NASDAQ_ACTIVO else "")
+                + ("\n📊 Y **Nasdaq R1** (solo compras): 3 velas M15 por encima del R1, SL 0,2 % / TP 0,5 %."
+                   if NASDAQ_ACTIVO and NASDAQ_R1_ACTIVO else "")
             ),
             view=VistaMonitor()
         )

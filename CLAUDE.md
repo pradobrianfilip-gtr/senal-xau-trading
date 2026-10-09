@@ -19,7 +19,8 @@ El usuario no debería tener que repetir nada que ya esté escrito aquí.
 
 Bot de señales **solo técnico** para **XAU/USD** en velas de **15 minutos (M15)**, que
 publica en **Discord** y corre en **Northflank**. Desde el 2026-10-08 lleva además, en
-prueba, una segunda estrategia para el **Nasdaq (USTEC)**: la "zona de ruido" (ver Decisiones).
+prueba, dos estrategias para el **Nasdaq (USTEC)**: la "zona de ruido" (desde el 2026-10-08) y la
+"R1" de solo compras (desde el 2026-10-09) (ver Decisiones).
 
 Forma parte de una **escalera de temporalidades** con otros dos bots del usuario:
 
@@ -38,6 +39,21 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-10-09 — **Nasdaq R1, SOLO COMPRAS, EN PRUEBA (demo)** (`NASDAQ_R1_ACTIVO = True`), del
+  vídeo de TikTok de @hobbiecode que mandó el usuario: pivotes clásicos con la **sesión de
+  ayer del QQQ** (P = (máx + mín + cierre)/3, R1 = 2P − mín); la primera vez en el día que
+  **3 velas M15 seguidas** (desde las 09:30 NY) tienen el mínimo por encima del R1 → compra al
+  cierre de la tercera (como tarde a las 15:00 NY), **SL −0,2 %** ("30 puntos" con el Nasdaq a
+  15.000), **TP +0,5 %** (2,5:1), cierre al final de la sesión si no toca nada; una al día.
+  Avisos 📊 (📊🟢 compra, 📊✅ TP, 📊❌ SL, 📊⏹️ cerrar), con una nota si la zona de ruido está
+  comprada a la vez. Laboratorio (NAS100, coste 0,8 pb): +0,12 / +0,19 / +0,27 R por operación
+  en 2010–15 / 2016–20 / 2026 (pivotes de la sesión; con pivotes del día completo +0,15 /
+  +0,30 / +0,41 R y 11/11 años positivos), ~1 por semana, peor caída ~−10 R; gana a "comprar
+  siempre a la misma hora" y con 2–4 velas y SL/TP de 0,15–0,30 %. **Las ventas (espejo bajo
+  el S1) pierden** (+0,07 / −0,15 / −0,24 R): el usuario decidió solo compras. De los otros
+  tres vídeos (vela de las 10:00 NY, primera vela M15 de NY con retesteo, acumulación antes
+  de las 09:30) ninguno pasa; "15 de cada 21 días sigue la dirección de la vela de las 10"
+  sale un 48–52 % — decisión del usuario.
 - 2026-10-08 — **Nasdaq (USTEC) "zona de ruido", EN PRUEBA (demo), conviviendo con la FVG
   del oro** (`NASDAQ_ACTIVO = True`). Estudio *Beat the Market* (Zarattini, Aziz y Barbon,
   2024), versión banda + VWAP, replicada en GitHub (`Chris-ZZX/spy-intraday-momentum`,
@@ -115,6 +131,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   USTEC en el bróker de 15:30 a 22:00 Madrid; comparar `!stats` con el laboratorio
   (+0,02 % por operación de media, unas 4 por semana). Volver a probar el S&P 500 con datos
   nuevos dentro de unos meses.
+- Nasdaq R1: comparar `!stats` con el laboratorio (+0,12 a +0,27 R por operación, ~1 por
+  semana, acierto ~43 %).
 
 ## Arquitectura
 
@@ -132,20 +150,23 @@ clásica, tendencia combinada → patrones, banderas, barrido, estructura → sc
 
 Nasdaq: bucle propio `revisar_nasdaq_periodicamente` (cada 5 min, lun–vie, 10:00–16:30 NY,
 independiente del horario y de la pausa del oro). `revisar_nasdaq()` solo pide datos cuando
-cerró una vela de decisión (:00/:30) o terminó la sesión (~13 consultas al día: 1300 velas
-de 5 min del QQQ en hora de Nueva York), rejuega el día con `ruido_simular_dia()` y manda
+cerró una vela M15 (:00/:15/:30/:45) o terminó la sesión (~26 consultas al día: 1300 velas
+de 5 min del QQQ en hora de Nueva York), rejuega el día con `ruido_simular_dia()` (decide a
+las :00/:30) y con `r1_simular_dia()` (`_procesar_r1`, avisos en `avisados_r1`) y manda
 los avisos que falten. Solo guarda qué avisos se mandaron (`nasdaq_estado.json`): tras un
 reinicio sigue avisando de los stops y del cierre de una operación ya avisada, y no avisa
 entradas de hace más de 20 min. Cada operación cerrada va a `historial_nasdaq.csv`
 (resultado en %). `ruido_simular_dia()` da las mismas operaciones que el laboratorio
-(1266 / 907 / 95 en 2010–15 / 2016–20 / 2026).
+(1266 / 907 / 95 en 2010–15 / 2016–20 / 2026); `r1_simular_dia()` también (453 / 356 / 48,
++0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
 
 Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 - `historial_senales.csv` — una fila por señal con `resultado` PENDIENTE/WIN/LOSS/TIMEOUT.
 - `senales_abiertas.json` — señales que aún no tocaron SL/TP (sobrevive a reinicios si
   el disco es persistente).
 - `historial_nasdaq.csv` — una fila por operación del Nasdaq cerrada (entrada, salida, % y motivo).
-- `nasdaq_estado.json` — avisos del Nasdaq ya mandados hoy.
+- `nasdaq_estado.json` — avisos del Nasdaq ya mandados hoy (zona de ruido y R1).
+- `historial_nasdaq_r1.csv` — una fila por operación R1 cerrada (TP/SL/CIERRE y resultado en R).
 
 ## Configuración / variables de entorno
 
@@ -157,7 +178,7 @@ Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 | `ALPHA_VANTAGE_API_KEY` | Respaldo de velas | No |
 | `TWELVE_DATA_BACKUP_API_KEY` | Segunda clave de Twelve Data | No |
 | `ARCHIVO_HISTORIAL` / `ARCHIVO_SENALES_ABIERTAS` | Rutas de los archivos de estado | No |
-| `ARCHIVO_HISTORIAL_NASDAQ` / `ARCHIVO_ESTADO_NASDAQ` | Rutas de los archivos del Nasdaq | No |
+| `ARCHIVO_HISTORIAL_NASDAQ` / `ARCHIVO_ESTADO_NASDAQ` / `ARCHIVO_HISTORIAL_NASDAQ_R1` | Rutas de los archivos del Nasdaq | No |
 | `PORT` | Puerto del health check (8080) | No |
 
 El bot necesita el intent **Message Content** (para `!stats`).
@@ -183,3 +204,5 @@ El bot necesita el intent **Message Content** (para `!stats`).
 - 2026-10-07 — FVG experimental: máximo 1 señal al día.
 - 2026-10-08 — Nasdaq (USTEC) "zona de ruido" en prueba, con datos del QQQ, avisos propios
   (📈) y apartado en `!stats`.
+- 2026-10-09 — Nasdaq R1 (solo compras) en prueba: avisos 📊, historial en R y apartado en
+  `!stats`; el QQQ se pide en cada vela M15 (~26 consultas al día).

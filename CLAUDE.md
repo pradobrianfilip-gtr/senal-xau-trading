@@ -133,6 +133,19 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   nuevos dentro de unos meses.
 - Nasdaq R1: comparar `!stats` con el laboratorio (+0,12 a +0,27 R por operación, ~1 por
   semana, acierto ~43 %).
+- **Prueba manual del usuario: "📦 Nasdaq 16:30"** (desde 2026-10-11, NO está en el bot). Regla
+  (USTEC M15, hora Madrid): marcar máximo/mínimo de la vela de las **15:00**; si la vela de las
+  **16:30** cierra **fuera** de ese rango con un cuerpo **≥ 2× el cuerpo medio** de las velas
+  anteriores → entrar en esa dirección (compra o venta); **stop 0,2 %**; salir al cierre de la
+  **5.ª vela** (~18:00); si no cumple, ese día no se opera. El usuario apunta cada operación
+  (fecha, lado, entrada, stop, salida, resultado y si había aviso 📈/📊 a favor) y las manda
+  tras 10–15 operaciones. Si van en línea con el laboratorio → añadirla al bot como
+  "📦 NASDAQ 16:30". Laboratorio (NAS100 2010–15 / 2016–20 / 2026, coste 0,8 pb): +0,07 /
+  +0,28 / +0,79 R por operación (2026 solo 12 operaciones), acierto 45–58 %, ~1 por semana.
+  Descartado de su mismo patrón (decisión del usuario tras ver los datos): entrar en la
+  ruptura de la vela de las **15:15** (−0,05 / +0,26 / −0,17 R) y cualquier ruptura de la vela
+  de las 15:00 sin la confirmación de las 16:30 (la dirección sale ~50 %: el impulso de la
+  apertura va igual de fuerte a favor que en contra).
 
 ## Arquitectura
 
@@ -206,3 +219,5 @@ El bot necesita el intent **Message Content** (para `!stats`).
   (📈) y apartado en `!stats`.
 - 2026-10-09 — Nasdaq R1 (solo compras) en prueba: avisos 📊, historial en R y apartado en
   `!stats`; el QQQ se pide en cada vela M15 (~26 consultas al día).
+- 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
+  16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

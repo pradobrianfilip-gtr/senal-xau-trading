@@ -333,7 +333,7 @@ SIMBOLO_DOLAR = "UUP"
 UMBRAL_CAIDA_DOLAR = 1.0
 UMBRAL_SUBIDA_DOLAR = 0.1
 SIMBOLO_ORO_ETF = "GLD"
-INTERVALO_ORO_MINUTOS = 10
+INTERVALO_ORO_MINUTOS = 60  # decision del usuario (2026-10-12): antes cada 10 min, demasiados mensajes
 SIMBOLO_LIQUIDEZ = "SPY"
 UMBRAL_SPREAD = 1.8
 UMBRAL_VOLUMEN = 2.0
@@ -771,13 +771,13 @@ def revisar_estado_oro():
     """Estado del oro combinando Twelve Data (fuente principal, la misma de
     las senales) + Alpaca GLD como segunda referencia. Requiere
     ALPACA_API_KEY/ALPACA_SECRET_KEY; sin ellas, solo muestra Twelve Data."""
-    if en_pausa_fin_de_semana():
+    if en_pausa_fin_de_semana() or not _dentro_de_horario_operativo():
         return
     try:
         velas = _obtener_velas_cacheadas()
         if not velas:
             return
-        precio_actual = velas[-1]["c"]
+        precio_actual = round(velas[-1]["c"], 2)
         tendencia_diaria = _obtener_tendencia_diaria(velas)
 
         lineas = [
@@ -789,7 +789,7 @@ def revisar_estado_oro():
         precio_gld, cambio_gld = _obtener_gld_alpaca()
         if precio_gld is not None:
             cambio_txt = f" ({'+' if cambio_gld > 0 else ''}{cambio_gld}% hoy)" if cambio_gld is not None else ""
-            lineas.append(f"\nFuente 2 -- Alpaca (ETF {SIMBOLO_ORO_ETF}, referencia adicional):\n{precio_gld} USD{cambio_txt}")
+            lineas.append(f"\nFuente 2 -- Alpaca (ETF {SIMBOLO_ORO_ETF}, referencia adicional):\n{round(precio_gld, 2)} USD{cambio_txt}")
 
         enviar_discord("ORO -- estado (Twelve Data + Alpaca)", "\n".join(lineas), color=0xE8B84B)
     except Exception as e:

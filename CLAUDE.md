@@ -102,6 +102,10 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   ATLAS** (aquí no, para no triplicarlo) — decisión del usuario.
 - 2026-10-05 — **Resultado de cada señal en Discord**: ✅ WIN (tocó TP), ❌ LOSS (tocó SL),
   ⌛ TIMEOUT (72 h sin tocar ninguno), como ATLAS — decisión del usuario.
+- 2026-10-12 — **"ORO -- estado" una vez por hora** (`INTERVALO_ORO_MINUTOS = 60`, antes 10) y
+  solo en el horario operativo (09:00–22:00 Madrid), con los precios redondeados a 2
+  decimales. Motivo: salía cada 10 minutos (también de noche) con el precio sin redondear
+  (p. ej. 4167.53561) — decisión del usuario.
 - 2026-09-30 — **Una API key de Twelve Data por bot** (compartida, la cuota de 800/día se
   agotaba hacia las 21:00 Madrid). La pone el usuario en Northflank — decisión del usuario.
 
@@ -122,12 +126,13 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
 ## Pendiente / ideas
 
-- Redondear el Entry a 2 decimales en los mensajes (a veces sale p. ej. 4152.53509).
+- ~~Redondear el Entry a 2 decimales~~: hecho en "ORO -- estado" (2026-10-12); la FVG ya redondea
+  (la lógica clásica, desactivada, no).
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
 - Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
   al backtest.
-- Nasdaq: confirmar en los logs que Twelve Data da el QQQ con la clave gratis (si no, el
-  bot avisa una vez en Discord: "📈 NASDAQ: sin datos del QQQ"); comprobar el spread real de
+- Nasdaq: ~~confirmar que Twelve Data da el QQQ~~ (confirmado el 2026-10-12: llegó el primer
+  aviso 📈 VENTA); comprobar el spread real de
   USTEC en el bróker de 15:30 a 22:00 Madrid; comparar `!stats` con el laboratorio
   (+0,02 % por operación de media, unas 4 por semana). Volver a probar el S&P 500 con datos
   nuevos dentro de unos meses.
@@ -233,5 +238,8 @@ El bot necesita el intent **Message Content** (para `!stats`).
   (📈) y apartado en `!stats`.
 - 2026-10-09 — Nasdaq R1 (solo compras) en prueba: avisos 📊, historial en R y apartado en
   `!stats`; el QQQ se pide en cada vela M15 (~26 consultas al día).
+- 2026-10-12 — "ORO -- estado" cada hora (antes cada 10 min), solo en horario operativo y con
+  el precio redondeado. Confirmado en vivo: Twelve Data da el QQQ con la clave gratis (primer
+  aviso 📈 VENTA a las 16:30 Madrid).
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

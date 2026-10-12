@@ -102,6 +102,10 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   ATLAS** (aquí no, para no triplicarlo) — decisión del usuario.
 - 2026-10-05 — **Resultado de cada señal en Discord**: ✅ WIN (tocó TP), ❌ LOSS (tocó SL),
   ⌛ TIMEOUT (72 h sin tocar ninguno), como ATLAS — decisión del usuario.
+- 2026-10-12 — **"ORO -- estado" una vez por hora** (`INTERVALO_ORO_MINUTOS = 60`, antes 10) y
+  solo en el horario operativo (09:00–22:00 Madrid), con los precios redondeados a 2
+  decimales. Motivo: salía cada 10 minutos (también de noche) con el precio sin redondear
+  (p. ej. 4167.53561) — decisión del usuario.
 - 2026-09-30 — **Una API key de Twelve Data por bot** (compartida, la cuota de 800/día se
   agotaba hacia las 21:00 Madrid). La pone el usuario en Northflank — decisión del usuario.
 
@@ -122,17 +126,45 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
 ## Pendiente / ideas
 
-- Redondear el Entry a 2 decimales en los mensajes (a veces sale p. ej. 4152.53509).
+- ~~Redondear el Entry a 2 decimales~~: hecho en "ORO -- estado" (2026-10-12); la FVG ya redondea
+  (la lógica clásica, desactivada, no).
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
 - Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
   al backtest.
-- Nasdaq: confirmar en los logs que Twelve Data da el QQQ con la clave gratis (si no, el
-  bot avisa una vez en Discord: "📈 NASDAQ: sin datos del QQQ"); comprobar el spread real de
+- Nasdaq: ~~confirmar que Twelve Data da el QQQ~~ (confirmado el 2026-10-12: llegó el primer
+  aviso 📈 VENTA); comprobar el spread real de
   USTEC en el bróker de 15:30 a 22:00 Madrid; comparar `!stats` con el laboratorio
   (+0,02 % por operación de media, unas 4 por semana). Volver a probar el S&P 500 con datos
   nuevos dentro de unos meses.
 - Nasdaq R1: comparar `!stats` con el laboratorio (+0,12 a +0,27 R por operación, ~1 por
   semana, acierto ~43 %).
+- **Prueba manual del usuario: "📦 Nasdaq 16:30"** (desde 2026-10-11, NO está en el bot). Regla
+  (USTEC M15, hora Madrid): marcar máximo/mínimo de la vela de las **15:00**; si la vela de las
+  **16:30** cierra **fuera** de ese rango con un cuerpo **≥ 2× el cuerpo medio** de las velas
+  anteriores → entrar en esa dirección (compra o venta); **stop 0,2 %**; salir al cierre de la
+  **5.ª vela** (~18:00); si no cumple, ese día no se opera. El usuario apunta cada operación
+  (fecha, lado, entrada, stop, salida, resultado y si había aviso 📈/📊 a favor) y las manda
+  tras 10–15 operaciones. Si van en línea con el laboratorio → añadirla al bot como
+  "📦 NASDAQ 16:30". Laboratorio (NAS100 2010–15 / 2016–20 / 2026, coste 0,8 pb): +0,07 /
+  +0,28 / +0,79 R por operación (2026 solo 12 operaciones), acierto 45–58 %, ~1 por semana.
+  Descartado de su mismo patrón (decisión del usuario tras ver los datos): entrar en la
+  ruptura de la vela de las **15:15** (−0,05 / +0,26 / −0,17 R) y cualquier ruptura de la vela
+  de las 15:00 sin la confirmación de las 16:30 (la dirección sale ~50 %: el impulso de la
+  apertura va igual de fuerte a favor que en contra).
+  - **2026-10-12 — OJO CON LA HORA:** el MetaTrader del usuario muestra la **hora del servidor
+    = Nueva York + 7 h = Madrid + 1 h** (lo vimos en su captura: móvil 16:28, vela en curso
+    17:15). Las horas que dice el usuario son las **de su gráfico**: "vela de las 15:00" = 08:00
+    NY (14:00 Madrid) y "vela de las 16:30" = **09:30 NY, la apertura de Wall Street** (15:30
+    Madrid). Rehecho con esas horas (stop 0,2 %, 5 velas): vela de apertura con cuerpo ≥ 1,5×
+    +0,05 / +0,08 / +0,10 R (≥ 2×: 0,00 / +0,11 / +0,12 R); la entrada A (vela 15:15 del gráfico)
+    pierde (−0,13 / −0,09 / −0,13 R). Los +0,07 / +0,28 / +0,79 R de arriba son de la vela de
+    las 10:30 NY = **17:30 en su gráfico** (16:30 Madrid), que sale más fuerte.
+  - **Registro de la prueba** (lotes en cuenta demo de 200 €; aviso dado: con 0,5 lotes un
+    stop de 0,2 % es ~15 % de la cuenta → recomendado 1 posición de ≤ 0,1 lotes):
+
+    | Fecha | Vela confirmación (gráfico) | Lado | Operaciones | Resultado |
+    |---|---|---|---|---|
+    | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
 
 ## Arquitectura
 
@@ -206,3 +238,8 @@ El bot necesita el intent **Message Content** (para `!stats`).
   (📈) y apartado en `!stats`.
 - 2026-10-09 — Nasdaq R1 (solo compras) en prueba: avisos 📊, historial en R y apartado en
   `!stats`; el QQQ se pide en cada vela M15 (~26 consultas al día).
+- 2026-10-12 — "ORO -- estado" cada hora (antes cada 10 min), solo en horario operativo y con
+  el precio redondeado. Confirmado en vivo: Twelve Data da el QQQ con la clave gratis (primer
+  aviso 📈 VENTA a las 16:30 Madrid).
+- 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
+  16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

@@ -146,6 +146,20 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   ruptura de la vela de las **15:15** (−0,05 / +0,26 / −0,17 R) y cualquier ruptura de la vela
   de las 15:00 sin la confirmación de las 16:30 (la dirección sale ~50 %: el impulso de la
   apertura va igual de fuerte a favor que en contra).
+  - **2026-10-12 — OJO CON LA HORA:** el MetaTrader del usuario muestra la **hora del servidor
+    = Nueva York + 7 h = Madrid + 1 h** (lo vimos en su captura: móvil 16:28, vela en curso
+    17:15). Las horas que dice el usuario son las **de su gráfico**: "vela de las 15:00" = 08:00
+    NY (14:00 Madrid) y "vela de las 16:30" = **09:30 NY, la apertura de Wall Street** (15:30
+    Madrid). Rehecho con esas horas (stop 0,2 %, 5 velas): vela de apertura con cuerpo ≥ 1,5×
+    +0,05 / +0,08 / +0,10 R (≥ 2×: 0,00 / +0,11 / +0,12 R); la entrada A (vela 15:15 del gráfico)
+    pierde (−0,13 / −0,09 / −0,13 R). Los +0,07 / +0,28 / +0,79 R de arriba son de la vela de
+    las 10:30 NY = **17:30 en su gráfico** (16:30 Madrid), que sale más fuerte.
+  - **Registro de la prueba** (lotes en cuenta demo de 200 €; aviso dado: con 0,5 lotes un
+    stop de 0,2 % es ~15 % de la cuenta → recomendado 1 posición de ≤ 0,1 lotes):
+
+    | Fecha | Vela confirmación (gráfico) | Lado | Operaciones | Resultado |
+    |---|---|---|---|---|
+    | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
 
 ## Arquitectura
 

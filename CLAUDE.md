@@ -102,6 +102,12 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   ATLAS** (aquí no, para no triplicarlo) — decisión del usuario.
 - 2026-10-05 — **Resultado de cada señal en Discord**: ✅ WIN (tocó TP), ❌ LOSS (tocó SL),
   ⌛ TIMEOUT (72 h sin tocar ninguno), como ATLAS — decisión del usuario.
+- 2026-10-12 — **Avisos del Nasdaq con niveles de USTEC orientativos**: entrada "a mercado ahora,
+  USTEC ≈ X" y SL/TP/stop/resultado también en **puntos de USTEC** (≈, con
+  `NASDAQ_RATIO_USTEC_QQQ` = 41,15: USTEC ~30.700 con QQQ 746,10 el 12/10). La zona de ruido
+  explica que **no tiene TP** (se sale con 📈⏹️ CERRAR o a las 22:00) y que un stop en el
+  bróker conviene ponerlo más lejos (p. ej. 0,2 %). Motivo: el usuario no veía entrada ni TP
+  en el aviso — decisión del usuario.
 - 2026-10-12 — **"ORO -- estado" una vez por hora** (`INTERVALO_ORO_MINUTOS = 60`, antes 10) y
   solo en el horario operativo (09:00–22:00 Madrid), con los precios redondeados a 2
   decimales. Motivo: salía cada 10 minutos (también de noche) con el precio sin redondear
@@ -187,7 +193,9 @@ de 5 min del QQQ en hora de Nueva York), rejuega el día con `ruido_simular_dia(
 las :00/:30) y con `r1_simular_dia()` (`_procesar_r1`, avisos en `avisados_r1`) y manda
 los avisos que falten. Solo guarda qué avisos se mandaron (`nasdaq_estado.json`): tras un
 reinicio sigue avisando de los stops y del cierre de una operación ya avisada, y no avisa
-entradas de hace más de 20 min. Cada operación cerrada va a `historial_nasdaq.csv`
+entradas de hace más de 20 min **ni las decididas más de 5 min antes de arrancar el proceso**
+(`_entrada_antigua`): el disco de Northflank no guarda `nasdaq_estado.json` entre despliegues
+y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operación cerrada va a `historial_nasdaq.csv`
 (resultado en %). `ruido_simular_dia()` da las mismas operaciones que el laboratorio
 (1266 / 907 / 95 en 2010–15 / 2016–20 / 2026); `r1_simular_dia()` también (453 / 356 / 48,
 +0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
@@ -241,5 +249,6 @@ El bot necesita el intent **Message Content** (para `!stats`).
 - 2026-10-12 — "ORO -- estado" cada hora (antes cada 10 min), solo en horario operativo y con
   el precio redondeado. Confirmado en vivo: Twelve Data da el QQQ con la clave gratis (primer
   aviso 📈 VENTA a las 16:30 Madrid).
+- 2026-10-12 — Nasdaq: avisos con USTEC ≈ y puntos; sin avisos repetidos tras un redeploy.
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

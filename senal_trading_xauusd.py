@@ -1565,7 +1565,15 @@ NASDAQ_SIMBOLO = "QQQ"
 NASDAQ_DIAS_RUIDO = 14
 NASDAQ_VELAS_5M = 1300  # ~16 sesiones de 78 velas de 5 min
 NASDAQ_UMBRAL_AVISO_STOP_PCT = 0.05  # solo se avisa de un stop nuevo si se mueve >= 0,05 %
-NASDAQ_MAX_RETRASO_MIN = 20  # tras un reinicio, no se avisan entradas de hace mas de 20 min
+NASDAQ_MAX_RETRASO_MIN = 20  # no se avisan entradas de hace mas de 20 min
+# Tras un reinicio tampoco se avisan las entradas decididas mas de 5 min antes de arrancar:
+# el disco de Northflank no guarda nasdaq_estado.json entre despliegues y el 12/10 un
+# redeploy volvio a mandar la VENTA de las 16:30 Madrid a las 16:47.
+NASDAQ_MARGEN_ARRANQUE_MIN = 5
+_ARRANQUE_PROCESO = datetime.now(timezone.utc)
+# USTEC ~ QQQ x 41,15 (12/10/2026: USTEC ~30.700 con QQQ 746,10). Solo para dar en los
+# avisos un nivel y unos puntos ORIENTATIVOS de USTEC; la estrategia decide con el QQQ.
+NASDAQ_RATIO_USTEC_QQQ = 41.15
 ARCHIVO_HISTORIAL_NASDAQ = os.environ.get("ARCHIVO_HISTORIAL_NASDAQ", "historial_nasdaq.csv")
 ARCHIVO_ESTADO_NASDAQ = os.environ.get("ARCHIVO_ESTADO_NASDAQ", "nasdaq_estado.json")
 CAMPOS_HISTORIAL_NASDAQ = ["fecha_ny", "direccion", "hora_entrada", "entrada", "hora_salida", "salida",
@@ -1693,6 +1701,27 @@ def _hora_ny_madrid(minuto):
     return f"{_hhmm(minuto)} NY / {t.astimezone(MADRID_TZ).strftime('%H:%M')} Madrid"
 
 
+def _entrada_antigua(minuto, m_entrada):
+    """True si una entrada no se debe avisar: es de hace demasiado o se decidio
+    antes de que arrancara el bot (tras un reinicio no se sabe si ya se aviso)."""
+    if minuto - m_entrada > NASDAQ_MAX_RETRASO_MIN:
+        return True
+    arranque = _ARRANQUE_PROCESO.astimezone(NUEVA_YORK_TZ)
+    if arranque.date() != datetime.now(NUEVA_YORK_TZ).date():
+        return False
+    return m_entrada < arranque.hour * 60 + arranque.minute - NASDAQ_MARGEN_ARRANQUE_MIN
+
+
+def _ustec(precio_qqq):
+    """Nivel aproximado de USTEC a partir del QQQ (orientativo)."""
+    return f"{precio_qqq * NASDAQ_RATIO_USTEC_QQQ:,.0f}".replace(",", ".")
+
+
+def _puntos(pct, precio_qqq):
+    """Puntos de USTEC aproximados que supone un % (orientativo)."""
+    return abs(pct) / 100 * precio_qqq * NASDAQ_RATIO_USTEC_QQQ
+
+
 def _formatear_evento_nasdaq(ev):
     """Avisos del Nasdaq: llevan delante 📈 NASDAQ (USTEC) para no confundirlos
     con los del oro, y las distancias en % (para aplicarlas a USTEC)."""
@@ -1702,16 +1731,20 @@ def _formatear_evento_nasdaq(ev):
     if ev["tipo"] == "entrada":
         dist = abs(_pct(ev["stop"], ev["precio"]))
         return (f"📈🟢 NASDAQ (USTEC) -- {lado}" if ev["dir"] > 0 else f"📈🔴 NASDAQ (USTEC) -- {lado}",
-                f"**Entrar ahora en {lado.lower()}** ({hora_txt}).\n"
-                f"**Stop de referencia:** a {dist:.2f} % {'por debajo' if ev['dir'] > 0 else 'por encima'} "
-                f"de tu entrada en USTEC (QQQ {ev['precio']:.2f} -> stop {ev['stop']:.2f}).\n"
-                f"Sin Take Profit: el bot revisa a las :00 y :30 y te avisa de cada cambio del stop y del cierre "
-                f"(como muy tarde, al cierre de Wall Street, 22:00 Madrid)." + pie,
+                f"**Entrada:** {lado.lower()} a mercado ahora ({hora_txt}), USTEC ≈ {_ustec(ev['precio'])}.\n"
+                f"**Stop de referencia:** {dist:.2f} % {'por debajo' if ev['dir'] > 0 else 'por encima'} de tu "
+                f"entrada ≈ **{_puntos(dist, ev['precio']):.0f} puntos** de USTEC.\n"
+                f"**Take Profit:** no tiene. Sales cuando el bot te mande 📈⏹️ CERRAR (revisa a las :00 y :30 "
+                f"y te avisa si mueve el stop) o, como muy tarde, a las 22:00 Madrid.\n"
+                f"_El stop de referencia es donde el bot cerraria en la siguiente revision; si pones un stop "
+                f"en el broker, mejor algo mas lejos (p. ej. 0,2 %) para que no te saque una mecha._\n"
+                f"QQQ: {ev['precio']:.2f} -> stop {ev['stop']:.2f}" + pie,
                 0x1F8FD6)
     if ev["tipo"] == "stop":
         desde_entrada = _pct(ev["stop"], ev["entrada"])
         return (f"📈🔁 NASDAQ (USTEC) -- mover stop de la {lado.lower()}",
                 f"**Nuevo stop:** a {desde_entrada:+.2f} % de tu precio de entrada "
+                f"(≈ {'+' if desde_entrada >= 0 else '-'}{_puntos(desde_entrada, ev['entrada']):.0f} puntos de USTEC) "
                 f"(QQQ: entrada {ev['entrada']:.2f}, stop {ev['stop']:.2f}, precio {ev['precio']:.2f}; "
                 f"{hora_txt})." + pie,
                 0x5DADE2)
@@ -1720,7 +1753,8 @@ def _formatear_evento_nasdaq(ev):
     return (f"📈⏹️ NASDAQ (USTEC) -- CERRAR {lado} {emoji} {pct:+.2f} %",
             f"**Cerrar la {lado.lower()} ahora** ({hora_txt}). Motivo: {ev['motivo']}.\n"
             f"QQQ: entrada {ev['entrada']:.2f} ({_hhmm(ev['m_entrada'])} NY) -> salida {ev['precio']:.2f}: "
-            f"**{pct:+.2f} %** (sin contar el spread)." + pie,
+            f"**{pct:+.2f} %** ≈ {'+' if pct >= 0 else '-'}{_puntos(pct, ev['entrada']):.0f} puntos de USTEC "
+            f"(sin contar el spread)." + pie,
             0x2ECC71 if pct > 0 else 0xE74C3C)
 
 
@@ -1816,9 +1850,12 @@ def _formatear_evento_r1(ev, coincide_ruido=False):
         aviso = ("\n\nℹ️ La zona de ruido (📈) tambien esta comprada ahora: es la misma idea, "
                  "no dupliques la operacion." if coincide_ruido else "")
         return ("📊🟢 NASDAQ R1 (USTEC) -- COMPRA",
-                f"**Comprar ahora** ({hora_txt}): 3 velas M15 seguidas con el minimo por encima del R1.\n"
-                f"**Stop Loss:** {NASDAQ_R1_SL_PCT:.2f} % por debajo de tu entrada en USTEC\n"
-                f"**Take Profit:** {NASDAQ_R1_TP_PCT:.2f} % por encima (2,5:1)\n"
+                f"**Entrada:** compra a mercado ahora ({hora_txt}), USTEC ≈ {_ustec(ev['precio'])}: "
+                f"3 velas M15 seguidas con el minimo por encima del R1.\n"
+                f"**Stop Loss:** {NASDAQ_R1_SL_PCT:.2f} % por debajo de tu entrada ≈ "
+                f"**{_puntos(NASDAQ_R1_SL_PCT, ev['precio']):.0f} puntos** de USTEC\n"
+                f"**Take Profit:** {NASDAQ_R1_TP_PCT:.2f} % por encima ≈ "
+                f"**{_puntos(NASDAQ_R1_TP_PCT, ev['precio']):.0f} puntos** (2,5:1)\n"
                 f"Si no toca ninguno, se cierra al final de la sesion (22:00 Madrid).\n"
                 f"QQQ: entrada {ev['precio']:.2f} | SL {ev['sl']:.2f} | TP {ev['tp']:.2f} | R1 {ev['r1']:.2f}"
                 + aviso + pie, 0x8E44AD)
@@ -1863,8 +1900,8 @@ def _procesar_r1(sesiones, barras_hoy, terminada, minuto, hoy, eventos_ruido):
             continue
         avisados.add(clave)
         if ev["tipo"] == "entrada":
-            if minuto - ev["m"] > NASDAQ_MAX_RETRASO_MIN:
-                print(f"Nasdaq R1: entrada de las {_hhmm(ev['m'])} NY demasiado antigua -- no se avisa.")
+            if _entrada_antigua(minuto, ev["m"]):
+                print(f"Nasdaq R1: entrada de las {_hhmm(ev['m'])} NY demasiado antigua o anterior al arranque -- no se avisa.")
                 avisados.add("omitida")
                 continue
             enviar_discord(*_formatear_evento_r1(ev, _ruido_comprado_en(eventos_ruido, ev["m"])))
@@ -1961,8 +1998,8 @@ def revisar_nasdaq():
                 continue
             avisados.add(clave)
             if ev["tipo"] == "entrada":
-                if minuto - ev["m"] > NASDAQ_MAX_RETRASO_MIN:
-                    print(f"Nasdaq: entrada de las {_hhmm(ev['m'])} NY demasiado antigua -- no se avisa.")
+                if _entrada_antigua(minuto, ev["m"]):
+                    print(f"Nasdaq: entrada de las {_hhmm(ev['m'])} NY demasiado antigua o anterior al arranque -- no se avisa.")
                     continue
                 entradas_avisadas.add(str(ev["m"]))
             elif str(ev["m_entrada"]) not in entradas_avisadas:

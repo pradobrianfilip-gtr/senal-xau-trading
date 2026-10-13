@@ -171,6 +171,17 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | Fecha | Vela confirmación (gráfico) | Lado | Operaciones | Resultado |
     |---|---|---|---|---|
     | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
+- **Segunda prueba manual del usuario: "🌙 caja de las 22:45"** (desde 2026-10-13, NO está en el bot).
+  Hora de su gráfico: vela de las **22:45** = 15:45 NY (última media hora antes del cierre de
+  Wall Street); caja con esa vela (y las siguientes) y ruptura con cuerpo durante la noche →
+  entrar a favor. Ejemplos del usuario: 8, 9 y 12/10 (dos al alza y uno a la baja; los tres
+  ganadores). Laboratorio (NAS100 M15 24 h, coste 0,8 pb, 12 versiones: caja de 1/2/4 velas,
+  salida a 4 h/8 h, TP 2R o SL 0,2 %/TP 0,5 %): **ninguna gana en los tres tramos** (p. ej.
+  caja 22:45, SL al otro lado, salida a 4 h: −0,05 / −0,04 / −0,19 R); tras la ruptura el
+  recorrido a favor y en contra es el mismo (días con más a favor 39–51 %). Se le recomendó no
+  operarla en real (spread nocturno más alto); el usuario la prueba en demo igualmente y
+  apunta stop y salida fijados de antemano. Las velas de 22:30/22:45 tampoco muestran patrón
+  de dirección (mismo color 46–51 %, siguen la dirección del día 48–51 %).
 
 ## Arquitectura
 

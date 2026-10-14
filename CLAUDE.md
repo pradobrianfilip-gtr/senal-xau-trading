@@ -171,6 +171,12 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | Fecha | Vela confirmación (gráfico) | Lado | Operaciones | Resultado |
     |---|---|---|---|---|
     | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
+    | 2026-10-13 | 16:30 (apertura): vela verde enorme que cierra muy por encima de la caja → **COMPRA** | — (no la tomó) | 2 ventas en la vela de las 16:15, antes de la confirmación | Pérdida (importe pendiente). **Según el usuario la estrategia sí habría servido** (dirección correcta; con su TP de 30 € y margen de 5 velas para entrar); con la regla escrita (entrada al cierre de las 16:30, stop 0,2 %, salida a la 5.ª vela) habría quedado cerca del stop (~−1 R). Lección del usuario: no entrar antes del cierre de la vela de las 16:30 y confiar en la señal. |
+
+    Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
+    pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
+    es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
+    Mejor fijar el TP en puntos/% y no en € (depende del lote).
 - **Segunda prueba manual del usuario: "🌙 caja de las 22:45"** (desde 2026-10-13, NO está en el bot).
   Hora de su gráfico: vela de las **22:45** = 15:45 NY (última media hora antes del cierre de
   Wall Street); caja con esa vela (y las siguientes) y ruptura con cuerpo durante la noche →
@@ -182,6 +188,11 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   operarla en real (spread nocturno más alto); el usuario la prueba en demo igualmente y
   apunta stop y salida fijados de antemano. Las velas de 22:30/22:45 tampoco muestran patrón
   de dirección (mismo color 46–51 %, siguen la dirección del día 48–51 %).
+  - **Registro de la prueba 🌙:**
+
+    | Fecha (noche) | Ruptura de la caja | Operación | Resultado |
+    |---|---|---|---|
+    | 2026-10-13 → 14 | Al alza (caja ~30.535–30.570) | Compra ~30.585 → cierre ~30.652 (madrugada del 14) | ✅ Ganadora, ~+67 puntos (importe pendiente) |
 
 ## Arquitectura
 

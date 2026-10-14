@@ -192,7 +192,7 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | Fecha (noche) | Ruptura de la caja | Operación | Resultado |
     |---|---|---|---|
-    | 2026-10-13 → 14 | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,40 €** (~+67 puntos; el usuario dice 0,05 lotes, encaja mejor con 0,5) |
+    | 2026-10-14 (caja de las 22:45 del 13) | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,15 €** (~+67 puntos; el usuario dice 0,05 lotes, encaja mejor con 0,5) |
 
 ## Arquitectura
 

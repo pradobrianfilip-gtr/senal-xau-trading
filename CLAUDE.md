@@ -174,18 +174,30 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
     | 2026-10-13 | 16:30 (apertura): vela verde enorme que cierra muy por encima de la caja → **COMPRA** | — (no la tomó) | 2 ventas en la vela de las 16:15, antes de la confirmación | **−57 € entre las dos** (el usuario dice 0,03 lotes; por el valor del punto de su cuenta, ~0,9 €/punto por lote, encaja mejor con 0,3). **Según el usuario la estrategia sí habría servido** (dirección correcta; con su TP de 30 € y margen de 5 velas para entrar); con la regla escrita (entrada al cierre de las 16:30, stop 0,2 %, salida a la 5.ª vela) habría quedado cerca del stop (~−1 R). Lección del usuario: no entrar antes del cierre de la vela de las 16:30 y confiar en la señal. |
     | 2026-10-14 | 16:30 (apertura): según la captura, vela verde de cuerpo normal (no ≥ 2× la media) que cierra por debajo de la caja → **sin señal, día sin operar** con la regla | — | **Compra 0,5** en 30.437,3 por la vela de las **14:30** (leyó mal la hora); la vela de las 15:30 del gráfico (08:30 NY, hora de datos de EE. UU.) bajó ~270 puntos; cerrada en 30.003,9 a las 19:24 (**−434 puntos, sin stop**) | ❌ **−194,98 €**. Lección: operar solo con la vela de las 16:30 del gráfico y **siempre con stop** (con el de 0,2 % habrían sido ~−27 €). |
-    | 2026-10-15 | 16:30 (apertura): vela verde de cuerpo grande que cierra en el borde superior de la caja (15:00–15:15, ~29.575–29.597) → **COMPRA** (justa) | Compra | 2 ventas de 0,5 antes de la confirmación (velas de 16:15/16:30; 29.559,9 → 29.527,7 y 29.525,6 → 29.517,3, cerradas a las 16:35) y **2 compras de 0,5 tras el cierre de la vela de las 16:30** (29.630,3 y 29.634,3 → ~29.717, cerradas a las **18:02 = 5.ª vela**, como dice la regla) | ✅ **+94,14 €**: compras según la regla **+76,08 €** (~+85 pts); ventas anticipadas +18,06 €. (Aparte, 2 compras de 0,2 a las 21:38/21:46: +1,36 €.) |
 
-    Acumulado 📦 hasta el 15/10: **−99,00 €** (+58,84 − 57 − 194,98 + 94,14). Las dos pérdidas, por
-    entrar fuera de la regla (antes de la confirmación o con la vela equivocada); el 15/10, la
-    primera vez que siguió la regla entera (entrada tras la vela de las 16:30, salida a la 5.ª
-    vela), ganó +76,08 €.
+    Acumulado 📦 hasta el 14/10: **−193,14 €** (+58,84 − 57 − 194,98); las dos pérdidas, por entrar
+    fuera de la regla (antes de la confirmación o con la vela equivocada).
+
+    2026-10-15 (cuenta en la regla; ver "misma regla" en la prueba 🌙): 2 ventas de 0,5 antes de la
+    confirmación (cerradas a las 16:35, +18,06 €) y 2 compras de 0,5 tras el cierre de la vela de
+    las 16:30 (~29.632 → ~29.717, cerradas a las 18:02 = 5.ª vela, +76,08 €) → **+94,14 €**; con
+    eso el acumulado 📦 queda en **−99,00 €**. Fuera de la regla: 2 compras de 0,2 a las
+    21:38/21:46 (+1,36 €) y una compra de 0,3 el 13/10 a las 22:14 (+0,37 €).
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
     Mejor fijar el TP en puntos/% y no en € (depende del lote).
 - **Segunda prueba manual del usuario: "🌙 caja de las 22:45"** (desde 2026-10-13, NO está en el bot).
+  **2026-10-15 — según el usuario, 📦 y 🌙 son LA MISMA REGLA aplicada en dos momentos**: marcar
+  una caja con una vela y entrar a favor de la vela que la rompe con cuerpo. 📦 = caja de las
+  15:00 y confirmación a las 16:30 (apertura de Wall Street); 🌙 = caja de las 22:45 (antes del
+  cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
+  el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
+  15/10 +138,35 € (+94,14 + 44,21) → **total −27,39 €** (📦 −99,00 € + 🌙 +71,61 €). Siguiendo la
+  regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
+  con la vela equivocada. En el laboratorio la regla funciona en la
+  apertura (+0,05 / +0,08 / +0,10 R) y no en el cierre (ninguna versión nocturna pasa).
   Hora de su gráfico: vela de las **22:45** = 15:45 NY (última media hora antes del cierre de
   Wall Street); caja con esa vela (y las siguientes) y ruptura con cuerpo durante la noche →
   entrar a favor. Ejemplos del usuario: 8, 9 y 12/10 (dos al alza y uno a la baja; los tres

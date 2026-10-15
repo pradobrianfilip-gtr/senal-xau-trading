@@ -196,7 +196,13 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) → **total −27,39 €** (📦 −99,00 € + 🌙 +71,61 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
-  con la vela equivocada. En el laboratorio la regla funciona en la
+  con la vela equivocada.
+  **2026-10-15 — plan del usuario:** hacer **~100 operaciones** con la regla y valorar el
+  laboratorio solo con los **últimos 4 años** (2022–2026: el Nasdaq de antes tenía otras empresas
+  y otra volatilidad). Datos gratuitos de 2022–2025 no encontrados (solo muestras de 2026 en
+  GitHub y NQ 1 min jul–oct 2026 en `Chief-rich/nasdaq100-data`); opciones: que el usuario exporte
+  USTEC M15 desde MetaTrader 5 de escritorio (datos de su bróker, con su hora) o que suba el CSV de
+  Kaggle "NQ Futures 1min Bar 2022-2025". En el laboratorio la regla funciona en la
   apertura (+0,05 / +0,08 / +0,10 R) y no en el cierre (ninguna versión nocturna pasa).
   Hora de su gráfico: vela de las **22:45** = 15:45 NY (última media hora antes del cierre de
   Wall Street); caja con esa vela (y las siguientes) y ruptura con cuerpo durante la noche →

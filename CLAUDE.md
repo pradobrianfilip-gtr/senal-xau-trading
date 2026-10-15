@@ -165,17 +165,21 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     +0,05 / +0,08 / +0,10 R (≥ 2×: 0,00 / +0,11 / +0,12 R); la entrada A (vela 15:15 del gráfico)
     pierde (−0,13 / −0,09 / −0,13 R). Los +0,07 / +0,28 / +0,79 R de arriba son de la vela de
     las 10:30 NY = **17:30 en su gráfico** (16:30 Madrid), que sale más fuerte.
-  - **Registro de la prueba** (lotes en cuenta demo de 200 €; aviso dado: con 0,5 lotes un
-    stop de 0,2 % es ~15 % de la cuenta → recomendado 1 posición de ≤ 0,1 lotes):
+  - **Registro de la prueba** (cuenta demo de **700 €** según su historial del 15/10, no 200 €;
+    USTEC ≈ 0,89 €/punto por lote; con 0,5 lotes un stop de 0,2 % (~60 pts) son ~27 € ≈ 4 % de la
+    cuenta → recomendado ≤ 0,2 lotes y **siempre con stop**):
 
     | Fecha | Vela confirmación (gráfico) | Lado | Operaciones | Resultado |
     |---|---|---|---|---|
     | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
     | 2026-10-13 | 16:30 (apertura): vela verde enorme que cierra muy por encima de la caja → **COMPRA** | — (no la tomó) | 2 ventas en la vela de las 16:15, antes de la confirmación | **−57 € entre las dos** (el usuario dice 0,03 lotes; por el valor del punto de su cuenta, ~0,9 €/punto por lote, encaja mejor con 0,3). **Según el usuario la estrategia sí habría servido** (dirección correcta; con su TP de 30 € y margen de 5 velas para entrar); con la regla escrita (entrada al cierre de las 16:30, stop 0,2 %, salida a la 5.ª vela) habría quedado cerca del stop (~−1 R). Lección del usuario: no entrar antes del cierre de la vela de las 16:30 y confiar en la señal. |
-    | 2026-10-14 | 16:30 (apertura): según la captura, vela verde de cuerpo normal (no ≥ 2× la media) que cierra por debajo de la caja → **sin señal, día sin operar** con la regla | — | Entró por la vela de las **14:30** (leyó mal la hora); la vela de las 15:30 del gráfico (08:30 NY, hora de datos de EE. UU.) bajó ~270 puntos | ❌ **−194,98 €** (casi toda la cuenta demo de 200 €). Lección: operar solo con la vela de las 16:30 del gráfico y con un lote que arriesgue poco. |
+    | 2026-10-14 | 16:30 (apertura): según la captura, vela verde de cuerpo normal (no ≥ 2× la media) que cierra por debajo de la caja → **sin señal, día sin operar** con la regla | — | **Compra 0,5** en 30.437,3 por la vela de las **14:30** (leyó mal la hora); la vela de las 15:30 del gráfico (08:30 NY, hora de datos de EE. UU.) bajó ~270 puntos; cerrada en 30.003,9 a las 19:24 (**−434 puntos, sin stop**) | ❌ **−194,98 €**. Lección: operar solo con la vela de las 16:30 del gráfico y **siempre con stop** (con el de 0,2 % habrían sido ~−27 €). |
+    | 2026-10-15 | 16:30 (apertura): vela verde de cuerpo grande que cierra en el borde superior de la caja (15:00–15:15, ~29.575–29.597) → **COMPRA** (justa) | Compra | 2 ventas de 0,5 antes de la confirmación (velas de 16:15/16:30; 29.559,9 → 29.527,7 y 29.525,6 → 29.517,3, cerradas a las 16:35) y **2 compras de 0,5 tras el cierre de la vela de las 16:30** (29.630,3 y 29.634,3 → ~29.717, cerradas a las **18:02 = 5.ª vela**, como dice la regla) | ✅ **+94,14 €**: compras según la regla **+76,08 €** (~+85 pts); ventas anticipadas +18,06 €. (Aparte, 2 compras de 0,2 a las 21:38/21:46: +1,36 €.) |
 
-    Acumulado 📦 hasta el 14/10: **−193,14 €** (+58,84 − 57 − 194,98); las dos pérdidas, por entrar
-    fuera de la regla (antes de la confirmación o con la vela equivocada).
+    Acumulado 📦 hasta el 15/10: **−99,00 €** (+58,84 − 57 − 194,98 + 94,14). Las dos pérdidas, por
+    entrar fuera de la regla (antes de la confirmación o con la vela equivocada); el 15/10, la
+    primera vez que siguió la regla entera (entrada tras la vela de las 16:30, salida a la 5.ª
+    vela), ganó +76,08 €.
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
@@ -196,10 +200,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | Fecha (noche) | Ruptura de la caja | Operación | Resultado |
     |---|---|---|---|
-    | 2026-10-14 (caja de las 22:45 del 13) | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,15 €** (~+67 puntos; el usuario dice 0,05 lotes, encaja mejor con 0,5) |
-    | 2026-10-15 (caja de las 22:45 del 14) | A la baja (caja ~29.925–29.980) | Venta ~29.875 en la vela de las 00:00 → cierre ~29.805 en la de las 00:30 (horas de su gráfico) | ✅ **+44,21 €** (~+70 puntos); el precio siguió bajando hasta ~29.690 a las 02:30 |
+    | 2026-10-14 (caja de las 22:45 del 13) | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,40 €** (su historial: compra 0,5 en 30.588,6 → 30.650,0, cerrada a las 05:26; ~+61 puntos) |
+    | 2026-10-15 (caja de las 22:45 del 14) | A la baja (caja ~29.925–29.980) | Venta ~29.875 en la vela de las 00:00 → cierre ~29.805 en la de las 00:30 (horas de su gráfico) | ✅ **+44,21 €** (su historial: venta **0,8** en 29.869,0 → 29.807,3, cerrada a las 01:31; ~+62 puntos); el precio siguió bajando hasta ~29.690 a las 02:30 |
 
-    Acumulado 🌙 hasta el 15/10: **+71,36 €** (2 de 2 ganadoras).
+    Acumulado 🌙 hasta el 15/10: **+71,61 €** (2 de 2 ganadoras).
 
 ## Arquitectura
 

@@ -172,6 +172,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     |---|---|---|---|---|
     | 2026-10-12 | 16:30 (apertura), cuerpo grande | Venta | 3 (0,5 + 0,3 + 0,3 lotes; la 1.ª antes de la confirmación) | +58,84 € |
     | 2026-10-13 | 16:30 (apertura): vela verde enorme que cierra muy por encima de la caja → **COMPRA** | — (no la tomó) | 2 ventas en la vela de las 16:15, antes de la confirmación | **−57 € entre las dos** (el usuario dice 0,03 lotes; por el valor del punto de su cuenta, ~0,9 €/punto por lote, encaja mejor con 0,3). **Según el usuario la estrategia sí habría servido** (dirección correcta; con su TP de 30 € y margen de 5 velas para entrar); con la regla escrita (entrada al cierre de las 16:30, stop 0,2 %, salida a la 5.ª vela) habría quedado cerca del stop (~−1 R). Lección del usuario: no entrar antes del cierre de la vela de las 16:30 y confiar en la señal. |
+    | 2026-10-14 | 16:30 (apertura): según la captura, vela verde de cuerpo normal (no ≥ 2× la media) que cierra por debajo de la caja → **sin señal, día sin operar** con la regla | — | Entró por la vela de las **14:30** (leyó mal la hora); la vela de las 15:30 del gráfico (08:30 NY, hora de datos de EE. UU.) bajó ~270 puntos | ❌ **−194,98 €** (casi toda la cuenta demo de 200 €). Lección: operar solo con la vela de las 16:30 del gráfico y con un lote que arriesgue poco. |
+
+    Acumulado 📦 hasta el 14/10: **−193,14 €** (+58,84 − 57 − 194,98); las dos pérdidas, por entrar
+    fuera de la regla (antes de la confirmación o con la vela equivocada).
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
@@ -193,6 +197,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | Fecha (noche) | Ruptura de la caja | Operación | Resultado |
     |---|---|---|---|
     | 2026-10-14 (caja de las 22:45 del 13) | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,15 €** (~+67 puntos; el usuario dice 0,05 lotes, encaja mejor con 0,5) |
+    | 2026-10-15 (caja de las 22:45 del 14) | — (detalles no indicados) | — | ✅ **+44,21 €** |
+
+    Acumulado 🌙 hasta el 15/10: **+71,36 €** (2 de 2 ganadoras).
 
 ## Arquitectura
 

@@ -187,6 +187,12 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
     Mejor fijar el TP en puntos/% y no en € (depende del lote).
 - **Segunda prueba manual del usuario: "🌙 caja de las 22:45"** (desde 2026-10-13, NO está en el bot).
+  **2026-10-15 — según el usuario, 📦 y 🌙 son LA MISMA REGLA aplicada en dos momentos**: marcar
+  una caja con una vela y entrar a favor de la vela que la rompe con cuerpo. 📦 = caja de las
+  15:00 y confirmación a las 16:30 (apertura de Wall Street); 🌙 = caja de las 22:45 (antes del
+  cierre) y ruptura durante la noche. Se evalúan como una sola prueba: acumulado conjunto hasta
+  el 15/10 **−121,53 €** (📦 −193,14 € + 🌙 +71,61 €). En el laboratorio la regla funciona en la
+  apertura (+0,05 / +0,08 / +0,10 R) y no en el cierre (ninguna versión nocturna pasa).
   Hora de su gráfico: vela de las **22:45** = 15:45 NY (última media hora antes del cierre de
   Wall Street); caja con esa vela (y las siguientes) y ruptura con cuerpo durante la noche →
   entrar a favor. Ejemplos del usuario: 8, 9 y 12/10 (dos al alza y uno a la baja; los tres

@@ -192,6 +192,11 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     eso el acumulado 📦 queda en **−99,00 €**. Fuera de la regla: 2 compras de 0,2 a las
     21:38/21:46 (+1,36 €) y una compra de 0,3 el 13/10 a las 22:14 (+0,37 €).
 
+    2026-10-16: **3 ventas** (lotes de 0,2, ya más pequeños): 29.688,3 → 29.681,0 cerrada a las
+    16:38 (+1,30 €) y 29.738,3 / 29.723,1 → ~29.651 cerradas a las **17:56 (5.ª vela)** (+15,55 y
+    +12,81 €) → **+29,66 €**; acumulado 📦 **−69,34 €**. (La de las 16:38 se cerró antes del cierre
+    de la vela de las 16:30, así que probablemente entró antes de la confirmación.)
+
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
@@ -202,7 +207,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   15:00 y confirmación a las 16:30 (apertura de Wall Street); 🌙 = caja de las 22:45 (antes del
   cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
-  15/10 +138,35 € (+94,14 + 44,21) → **total −27,39 €** (📦 −99,00 € + 🌙 +71,61 €). Siguiendo la
+  15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) → **total +46,44 €**
+  (📦 −69,34 € + 🌙 +115,78 €); su cuenta demo: 700 € → 747,35 € el 16/10. Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
   con la vela equivocada.
   **2026-10-15 — plan del usuario:** hacer **~100 operaciones** con la regla y valorar el
@@ -229,7 +235,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | 2026-10-14 (caja de las 22:45 del 13) | Al alza (caja ~30.535–30.570) | Compra ~30.585 a la 01:15 → cierre ~30.652 a las 05:15 del 14 (horas de su gráfico) | ✅ **+27,40 €** (su historial: compra 0,5 en 30.588,6 → 30.650,0, cerrada a las 05:26; ~+61 puntos) |
     | 2026-10-15 (caja de las 22:45 del 14) | A la baja (caja ~29.925–29.980) | Venta ~29.875 en la vela de las 00:00 → cierre ~29.805 en la de las 00:30 (horas de su gráfico) | ✅ **+44,21 €** (su historial: venta **0,8** en 29.869,0 → 29.807,3, cerrada a las 01:31; ~+62 puntos); el precio siguió bajando hasta ~29.690 a las 02:30 |
 
-    Acumulado 🌙 hasta el 15/10: **+71,61 €** (2 de 2 ganadoras).
+    | 2026-10-16 (caja de las 22:45 del 15) | A la baja | **2 ventas de 0,3** en 29.897,5 / 29.898,0: una cerrada a las 03:27 en 29.762,0 (+36,26 €, ~+135 pts) y la otra a las 14:39 en 29.868,3 (+7,91 €) | ✅ **+44,17 €** |
+
+    Acumulado 🌙 hasta el 16/10: **+115,78 €** (3 de 3 noches ganadoras).
 
 ## Arquitectura
 

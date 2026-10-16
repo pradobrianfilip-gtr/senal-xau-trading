@@ -83,6 +83,14 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   Backtest con el tope: ~2,4 señales por semana (señal en ~48 % de los días), −0,12 R en
   2012–17, −0,03 R en 2018–22, +0,04 R en 2026 (con 3/día: −0,06 / −0,09 / +0,23 R) —
   decisión del usuario.
+- 2026-10-16 — **Estadísticas siempre disponibles**: botón **📊 Estadísticas** junto al de
+  monitorear (mismo informe que `!stats`; funciona aunque el bot no tenga el intent *Message
+  Content*) y **respaldo del historial en Discord** como en fusión: el disco de Northflank se
+  borra en cada redeploy, así que `historial_senales.csv`, `senales_abiertas.json`,
+  `historial_nasdaq.csv`, `historial_nasdaq_r1.csv` y `nasdaq_estado.json` se guardan como
+  adjuntos de **un mensaje fijado** ("📦 Respaldo de datos del bot de senales (no borrar)") que
+  se edita cuando algo cambia (`respaldo_periodicamente`, cada 5 min) y se recuperan al arrancar
+  si el disco viene vacío. Necesita el permiso **Fijar mensajes** — decisión del usuario.
 - 2026-10-06 — **`!stats` como el de ATLAS**: separa la estrategia FVG de la clásica, con
   acierto, Profit Factor, resultado acumulado y drawdown en R, desglose por tipo de evento y
   señales abiertas — decisión del usuario.
@@ -251,7 +259,11 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 (1266 / 907 / 95 en 2010–15 / 2016–20 / 2026); `r1_simular_dia()` también (453 / 356 / 48,
 +0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
 
-Archivos de estado (en el directorio de trabajo, o donde digan las variables):
+Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
+5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.
+
+Archivos de estado (en el directorio de trabajo, o donde digan las variables; todos van al
+respaldo de Discord):
 - `historial_senales.csv` — una fila por señal con `resultado` PENDIENTE/WIN/LOSS/TIMEOUT.
 - `senales_abiertas.json` — señales que aún no tocaron SL/TP (sobrevive a reinicios si
   el disco es persistente).
@@ -270,9 +282,11 @@ Archivos de estado (en el directorio de trabajo, o donde digan las variables):
 | `TWELVE_DATA_BACKUP_API_KEY` | Segunda clave de Twelve Data | No |
 | `ARCHIVO_HISTORIAL` / `ARCHIVO_SENALES_ABIERTAS` | Rutas de los archivos de estado | No |
 | `ARCHIVO_HISTORIAL_NASDAQ` / `ARCHIVO_ESTADO_NASDAQ` / `ARCHIVO_HISTORIAL_NASDAQ_R1` | Rutas de los archivos del Nasdaq | No |
+| `DISCORD_CHANNEL_ID_RESPALDO` | Canal del mensaje de respaldo (por defecto, el de señales) | No |
 | `PORT` | Puerto del health check (8080) | No |
 
-El bot necesita el intent **Message Content** (para `!stats`).
+El bot necesita el intent **Message Content** (para `!stats`; el botón 📊 funciona sin él) y el
+permiso **Fijar mensajes** (respaldo).
 
 ## Despliegue (Northflank)
 
@@ -301,5 +315,6 @@ El bot necesita el intent **Message Content** (para `!stats`).
   el precio redondeado. Confirmado en vivo: Twelve Data da el QQQ con la clave gratis (primer
   aviso 📈 VENTA a las 16:30 Madrid).
 - 2026-10-12 — Nasdaq: avisos con USTEC ≈ y puntos; sin avisos repetidos tras un redeploy.
+- 2026-10-16 — Botón 📊 Estadísticas y respaldo de los historiales en un mensaje fijado de Discord.
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

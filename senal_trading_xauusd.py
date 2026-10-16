@@ -3382,6 +3382,150 @@ class VistaMonitor(discord.ui.View):
         embed = await asyncio.to_thread(generar_reporte_bajo_demanda)
         await interaction.followup.send(embed=embed)
 
+    # Lo mismo que !stats, pero con boton: funciona aunque el bot no tenga el
+    # intent "Message Content" activado en el portal de Discord.
+    @discord.ui.button(label="Estadisticas", style=discord.ButtonStyle.secondary,
+                        emoji="📊", custom_id="estadisticas_senales")
+    async def boton_estadisticas(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True)
+        embed = await asyncio.to_thread(generar_reporte_estadisticas)
+        await interaction.followup.send(embed=embed)
+
+
+# ---------------------------------------------------------------------------
+# RESPALDO DEL HISTORIAL EN DISCORD (2026-10-16): el disco de Northflank no se
+# conserva entre despliegues, asi que los historiales (los que lee !stats), las
+# senales abiertas y el estado del Nasdaq se guardan como adjuntos de UN mensaje
+# fijado del propio bot, que se edita cuando algo cambia. Al arrancar, si el
+# disco viene vacio, se recuperan de ahi. Igual que en fusion.
+# ---------------------------------------------------------------------------
+
+RESPALDO_DISCORD_ACTIVO = True
+DISCORD_CHANNEL_ID_RESPALDO = int(os.environ.get("DISCORD_CHANNEL_ID_RESPALDO", "0") or "0")
+MARCA_RESPALDO = "📦 Respaldo de datos del bot de senales (no borrar)"
+_mensaje_respaldo = None
+_firma_respaldo = None   # (ruta, tamano, mtime) de lo ultimo subido
+
+
+def _archivos_respaldo():
+    return [ARCHIVO_HISTORIAL, ARCHIVO_SENALES_ABIERTAS, ARCHIVO_HISTORIAL_NASDAQ,
+            ARCHIVO_HISTORIAL_NASDAQ_R1, ARCHIVO_ESTADO_NASDAQ]
+
+
+def _firma_archivos():
+    firma = []
+    for ruta in _archivos_respaldo():
+        try:
+            st = os.stat(ruta)
+            firma.append((ruta, st.st_size, st.st_mtime_ns))
+        except OSError:
+            pass
+    return tuple(firma)
+
+
+def _canal_respaldo():
+    if DISCORD_CHANNEL_ID_RESPALDO:
+        return client.get_channel(DISCORD_CHANNEL_ID_RESPALDO)
+    return _canal
+
+
+def _es_mensaje_respaldo(mensaje):
+    return mensaje.author == client.user and mensaje.content.startswith(MARCA_RESPALDO)
+
+
+async def _restaurar_respaldo():
+    """Al arrancar: busca el mensaje de respaldo (fijados y luego historial reciente) y
+    recupera los archivos que falten en el disco (deploy nuevo)."""
+    global _mensaje_respaldo, _firma_respaldo
+    canal = _canal_respaldo()
+    if not RESPALDO_DISCORD_ACTIVO or canal is None:
+        return
+    try:
+        async for mensaje in canal.pins(limit=50):
+            if _es_mensaje_respaldo(mensaje):
+                _mensaje_respaldo = mensaje
+                break
+        if _mensaje_respaldo is None:
+            async for mensaje in canal.history(limit=2000):
+                if _es_mensaje_respaldo(mensaje):
+                    _mensaje_respaldo = mensaje
+                    break
+    except discord.HTTPException as e:
+        print(f"No se pudo buscar el respaldo en Discord: {e}")
+        return
+    if _mensaje_respaldo is None:
+        print("Sin respaldo previo en Discord: se creara en cuanto haya datos.")
+        return
+    destinos = {os.path.basename(r): r for r in _archivos_respaldo()}
+    recuperados = []
+    for adjunto in _mensaje_respaldo.attachments:
+        destino = destinos.get(adjunto.filename)
+        if destino is None or os.path.isfile(destino):
+            continue  # reinicio sin deploy: manda el archivo local
+        try:
+            contenido = await adjunto.read()
+            temporal = f"{destino}.tmp"
+            with open(temporal, "wb") as f:
+                f.write(contenido)
+            os.replace(temporal, destino)
+            recuperados.append(adjunto.filename)
+        except (discord.HTTPException, OSError) as e:
+            print(f"No se pudo recuperar {adjunto.filename} del respaldo: {e}")
+    if recuperados:
+        _cargar_senales_abiertas()
+        _cargar_estado_nasdaq()
+        print(f"Respaldo recuperado de Discord: {', '.join(recuperados)}.")
+    _firma_respaldo = _firma_archivos()
+
+
+def _texto_respaldo():
+    lineas = [MARCA_RESPALDO]
+    stats = _calcular_estadisticas_historial()
+    if stats and stats["total"]:
+        lineas.append(f"Oro: {stats['wins']} WIN / {stats['losses']} LOSS / {stats['timeouts']} TIMEOUT "
+                      f"({stats['resultado_r']:+.2f}R)")
+    for nombre, fn in (("Nasdaq zona de ruido", _estadisticas_nasdaq), ("Nasdaq R1", _estadisticas_nasdaq_r1)):
+        try:
+            st = fn()
+        except Exception:
+            st = None
+        if st:
+            lineas.append(f"{nombre}: {st['n']} operaciones, acierto {st['acierto']:.0f}%")
+    lineas.append(f"Actualizado: {hora_madrid()}")
+    return "\n".join(lineas)
+
+
+async def _subir_respaldo():
+    """Si algun archivo cambio, actualiza el mensaje de respaldo (lo crea y lo fija la
+    primera vez). Si falla, se reintenta en el proximo ciclo."""
+    global _mensaje_respaldo, _firma_respaldo
+    canal = _canal_respaldo()
+    if not RESPALDO_DISCORD_ACTIVO or canal is None:
+        return
+    firma = _firma_archivos()
+    if not firma or firma == _firma_respaldo:
+        return
+    try:
+        contenido = await asyncio.to_thread(_texto_respaldo)
+        archivos = [discord.File(r, filename=os.path.basename(r)) for r, _, _ in firma]
+        if _mensaje_respaldo is not None:
+            _mensaje_respaldo = await _mensaje_respaldo.edit(content=contenido, attachments=archivos)
+        else:
+            _mensaje_respaldo = await canal.send(content=contenido, files=archivos)
+            try:
+                await _mensaje_respaldo.pin()
+            except discord.HTTPException as e:
+                print(f"No se pudo fijar el mensaje de respaldo (dale al bot el permiso "
+                      f"'Fijar mensajes' / 'Gestionar mensajes'): {e}")
+        _firma_respaldo = firma
+    except (discord.HTTPException, OSError) as e:
+        print(f"No se pudo guardar el respaldo en Discord: {e}")
+
+
+@tasks.loop(minutes=5)
+async def respaldo_periodicamente():
+    await _subir_respaldo()
+
 
 # ---------------------------------------------------------------------------
 # MINI SERVIDOR WEB (para hosts gratuitos tipo Render + UptimeRobot)
@@ -3464,6 +3608,9 @@ async def on_ready():
         return
     _arranque_anunciado = True
     client.add_view(VistaMonitor())  # para que el boton siga vivo tras reinicios
+    # Antes de arrancar los bucles: recuperar los historiales si el disco viene
+    # vacio (cada deploy en Northflank empieza de cero).
+    await _restaurar_respaldo()
 
     if _canal is not None:
         await _canal.send(
@@ -3471,8 +3618,8 @@ async def on_ready():
                 "**Bot de senales ICT XAU/USD iniciado.**\n"
                 f"Vigilando con velas reales ({GRANULARIDAD}), filtradas por la "
                 f"tendencia del dia y confirmadas por RSI. Te aviso solo cuando "
-                f"detecte algo confirmado -- y puedes presionar el boton de abajo "
-                f"para revisar el estado cuando quieras, sin esperar."
+                f"detecte algo confirmado -- y puedes presionar los botones de abajo "
+                f"para revisar el estado o ver las estadisticas (tambien con !stats)."
                 + ("\n📈 Y en prueba: **Nasdaq (USTEC), zona de ruido** -- avisos de 15:30 a 22:00 "
                    "Madrid (sesion de Wall Street)." if NASDAQ_ACTIVO else "")
                 + ("\n📊 Y **Nasdaq R1** (solo compras): 3 velas M15 por encima del R1, SL 0,2 % / TP 0,5 %."
@@ -3487,6 +3634,8 @@ async def on_ready():
         revisar_periodicamente.start()
     if NASDAQ_ACTIVO and not revisar_nasdaq_periodicamente.is_running():
         revisar_nasdaq_periodicamente.start()
+    if RESPALDO_DISCORD_ACTIVO and not respaldo_periodicamente.is_running():
+        respaldo_periodicamente.start()
 
     # [V3 -- agregado] Arranca las tareas de correlacion junto a la principal.
     for tarea_v3 in (revisar_dolar_periodicamente, revisar_estado_oro_periodicamente,
@@ -3503,7 +3652,7 @@ async def on_message(message):
         return
 
     contenido = message.content.strip().lower()
-    if contenido not in ("!stats", "!estadisticas"):
+    if contenido not in ("!stats", "!estadisticas", "!estadísticas"):
         return
 
     try:

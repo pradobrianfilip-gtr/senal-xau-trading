@@ -197,6 +197,13 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     +12,81 €) → **+29,66 €**; acumulado 📦 **−69,34 €**. (La de las 16:38 se cerró antes del cierre
     de la vela de las 16:30, así que probablemente entró antes de la confirmación.)
 
+    2026-10-19: **5 compras** (0,5 + 0,5 + 0,5 + 0,1 + 0,1 = **1,7 lotes a la vez**): 29.507,1 →
+    29.578,0 (+31,61 €), 29.586,9 → 29.661,6 (+33,30 €), 29.588,1 → 29.663,2 (+33,48 €), 29.586,2 →
+    29.664,0 (+6,94 €), 29.588,2 → 29.670,5 (+7,34 €), cerradas entre las 17:13 y las 17:18 (antes de
+    la 5.ª vela) → **+112,67 €** (~+70–80 pts cada una); acumulado 📦 **+43,33 €**. El balance de su
+    cuenta subió ese día de 824,82 € a 1.038,26 € (+213,44 €): hay ~+100,77 € de operaciones que no
+    salen en la captura.
+
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
@@ -207,8 +214,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   15:00 y confirmación a las 16:30 (apertura de Wall Street); 🌙 = caja de las 22:45 (antes del
   cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
-  15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +77,47 € (🌙) →
-  **total +123,91 €** (📦 −69,34 € + 🌙 +193,25 €); su cuenta demo: 700 € → 824,82 € el 19/10. Siguiendo la
+  15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
+  77,47) → **total +236,58 €** en 24 operaciones (📦 +43,33 € + 🌙 +193,25 €); su cuenta demo:
+  700 € → 1.038,26 € el 19/10. Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
   con la vela equivocada.
   **2026-10-15 — plan del usuario:** hacer **~100 operaciones** con la regla y valorar el

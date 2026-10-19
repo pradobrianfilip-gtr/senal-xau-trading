@@ -207,8 +207,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   15:00 y confirmación a las 16:30 (apertura de Wall Street); 🌙 = caja de las 22:45 (antes del
   cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
-  15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) → **total +46,44 €**
-  (📦 −69,34 € + 🌙 +115,78 €); su cuenta demo: 700 € → 747,35 € el 16/10. Siguiendo la
+  15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +77,47 € (🌙) →
+  **total +123,91 €** (📦 −69,34 € + 🌙 +193,25 €); su cuenta demo: 700 € → 824,82 € el 19/10. Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
   con la vela equivocada.
   **2026-10-15 — plan del usuario:** hacer **~100 operaciones** con la regla y valorar el
@@ -237,7 +237,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-10-16 (caja de las 22:45 del 15) | A la baja | **2 ventas de 0,3** en 29.897,5 / 29.898,0: una cerrada a las 03:27 en 29.762,0 (+36,26 €, ~+135 pts) y la otra a las 14:39 en 29.868,3 (+7,91 €) | ✅ **+44,17 €** |
 
-    Acumulado 🌙 hasta el 16/10: **+115,78 €** (3 de 3 noches ganadoras).
+    | 2026-10-19 (lunes; caja de las 22:45 anterior, tras el fin de semana) | Al alza | **2 compras de 0,2** en 29.333,4 / 29.329,9: cerradas a las 05:04 en 29.524,6 (+34,05 €, ~+191 pts) y a las 06:24 en 29.573,7 (+43,42 €, ~+244 pts) | ✅ **+77,47 €** |
+
+    Acumulado 🌙 hasta el 19/10: **+193,25 €** (4 de 4 noches ganadoras).
 
 ## Arquitectura
 

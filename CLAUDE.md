@@ -201,8 +201,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     29.578,0 (+31,61 €), 29.586,9 → 29.661,6 (+33,30 €), 29.588,1 → 29.663,2 (+33,48 €), 29.586,2 →
     29.664,0 (+6,94 €), 29.588,2 → 29.670,5 (+7,34 €), cerradas entre las 17:13 y las 17:18 (antes de
     la 5.ª vela) → **+112,67 €** (~+70–80 pts cada una); acumulado 📦 **+43,33 €**. El balance de su
-    cuenta subió ese día de 824,82 € a 1.038,26 € (+213,44 €): hay ~+100,77 € de operaciones que no
-    salen en la captura.
+    cuenta subió ese día de 824,82 € a 1.038,26 € (+213,44 €): los ~+100,77 € que no salen en la
+    captura son **operaciones de oro** (según el usuario), fuera de esta prueba.
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
@@ -216,7 +216,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
   77,47) · 20/10 +17,84 € (🌙) → **total +254,42 €** en 26 operaciones (📦 +43,33 € + 🌙
-  +211,09 €); su cuenta demo: 700 € → 1.085,51 € el 20/10. Siguiendo la
+  +211,09 €); su cuenta demo: 700 € → 1.085,51 € el 20/10 (la misma cuenta lleva también
+  operaciones de oro que no cuentan en esta prueba: ~+130 € entre el 19 y el 20/10). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
   con la vela equivocada.
   **2026-10-15 — plan del usuario:** hacer **~100 operaciones** con la regla y valorar el
@@ -247,7 +248,7 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-10-19 (lunes; caja de las 22:45 anterior, tras el fin de semana) | Al alza | **2 compras de 0,2** en 29.333,4 / 29.329,9: cerradas a las 05:04 en 29.524,6 (+34,05 €, ~+191 pts) y a las 06:24 en 29.573,7 (+43,42 €, ~+244 pts) | ✅ **+77,47 €** |
 
-    | 2026-10-20 (martes; caja de las 22:45 del 19) | A la baja | **2 ventas de 0,1** en 29.525,9 / 29.525,8 → 29.424,2 / 29.427,2, cerradas a las 08:58 (~+100 pts cada una) | ✅ **+17,84 €** (el balance subió 47,25 €: ~+29,41 € de operaciones que no salen en la captura) |
+    | 2026-10-20 (martes; caja de las 22:45 del 19) | A la baja | **2 ventas de 0,1** en 29.525,9 / 29.525,8 → 29.424,2 / 29.427,2, cerradas a las 08:58 (~+100 pts cada una) | ✅ **+17,84 €** (el balance subió 47,25 €: los ~+29,41 € restantes son **operaciones de oro**, fuera de la prueba) |
 
     Acumulado 🌙 hasta el 20/10: **+211,09 €** (5 de 5 noches ganadoras).
 

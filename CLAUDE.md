@@ -91,6 +91,15 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   adjuntos de **un mensaje fijado** ("📦 Respaldo de datos del bot de senales (no borrar)") que
   se edita cuando algo cambia (`respaldo_periodicamente`, cada 5 min) y se recuperan al arrancar
   si el disco viene vacío. Necesita el permiso **Fijar mensajes** — decisión del usuario.
+- 2026-10-21 — **Comando `!USTEC`** (también `!nasdaq` y botón 📈 USTEC) con las operaciones
+  **manuales** del usuario en el Nasdaq (regla de la caja: 📦 apertura y 🌙 noche): una línea por
+  día ("Oct21/26: 4 operaciones -- profit 2 · loss 2 · 50 % · −13,34 € (acumulado 76 %)") y el
+  total (operaciones, profit/loss, % de acierto, días positivos/negativos, resultado y media por
+  día, y desglose apertura/noche). Los datos están en **`operaciones_ustec.csv`** (una fila por
+  operación; un grupo sin desglose lleva `operaciones` > 1). **Claude añade ahí cada operación que
+  el usuario manda** (además de anotarla abajo, en "Pendiente"); el bot lee el archivo de `main`
+  en GitHub (repo público), así que se actualiza al aceptar el PR **sin redeploy**; si GitHub no
+  responde, usa la copia del despliegue — decisión del usuario.
 - 2026-10-06 — **`!stats` como el de ATLAS**: separa la estrategia FVG de la clásica, con
   acierto, Profit Factor, resultado acumulado y drawdown en R, desglose por tipo de evento y
   señales abiertas — decisión del usuario.
@@ -214,6 +223,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     Acumulado 📦 **−54,16 €**; las pérdidas por saltarse la regla suman −349,47 €
     (13/10 −57, 14/10 −194,98, 20/10 −97,49).
 
+    2026-10-21: **2 compras de 0,1** en 29.716,6 / 29.722,8 → 29.863,4 / 29.869,1, cerradas a las
+    18:45 / 18:50 (~+147 pts, después de la 5.ª vela) → ✅ **+26,12 €** (+13,08 y +13,04);
+    acumulado 📦 **−28,04 €**. Ese día también 2 ventas de oro (+11,41 y +30,39 €), fuera de la prueba.
+
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
@@ -225,8 +238,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
-  77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) → **total +156,93 €** en 28 operaciones (📦
-  −54,16 € + 🌙 +211,09 €); su cuenta demo: 700 € → 1.060,95 € el 21/10 (la misma cuenta lleva
+  77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) →
+  **total +143,59 €** en 32 operaciones (📦 −28,04 € + 🌙 +171,63 €); su cuenta demo: 700 € →
+  1.089,41 € el 21/10 (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -261,7 +275,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-10-20 (martes; caja de las 22:45 del 19) | A la baja | **2 ventas de 0,1** en 29.525,9 / 29.525,8 → 29.424,2 / 29.427,2, cerradas a las 08:58 (~+100 pts cada una) | ✅ **+17,84 €** (el balance subió 47,25 €: los +29,41 € restantes son una **venta de oro** de 0,07 cerrada el 19/10 a las 23:04, fuera de la prueba) |
 
-    Acumulado 🌙 hasta el 20/10: **+211,09 €** (5 de 5 noches ganadoras).
+    | 2026-10-21 (miércoles; caja de las 22:45 del 20) | Al alza | **2 compras de 0,1** en 29.787,9 / 29.788,7 → 29.566,2 / 29.567,9, cerradas a las 12:03 (**~−221 pts**, sin stop de 0,2 %: con él, ~−11 €) | ❌ **−39,46 €** (−19,77 y −19,69): primera noche perdedora |
+
+    Acumulado 🌙 hasta el 21/10: **+171,63 €** (5 de 6 noches ganadoras).
 
 ## Arquitectura
 
@@ -302,6 +318,8 @@ respaldo de Discord):
 - `historial_nasdaq.csv` — una fila por operación del Nasdaq cerrada (entrada, salida, % y motivo).
 - `nasdaq_estado.json` — avisos del Nasdaq ya mandados hoy (zona de ruido y R1).
 - `historial_nasdaq_r1.csv` — una fila por operación R1 cerrada (TP/SL/CIERRE y resultado en R).
+- `operaciones_ustec.csv` (en el repo, no en el disco) — operaciones manuales del usuario para `!USTEC`;
+  lo mantiene Claude y el bot lo lee de GitHub (`URL_OPERACIONES_USTEC`).
 
 ## Configuración / variables de entorno
 
@@ -317,7 +335,7 @@ respaldo de Discord):
 | `DISCORD_CHANNEL_ID_RESPALDO` | Canal del mensaje de respaldo (por defecto, el de señales) | No |
 | `PORT` | Puerto del health check (8080) | No |
 
-El bot necesita el intent **Message Content** (para `!stats`; el botón 📊 funciona sin él) y el
+El bot necesita el intent **Message Content** (para `!stats` y `!USTEC`; los botones 📊 y 📈 funcionan sin él) y el
 permiso **Fijar mensajes** (respaldo).
 
 ## Despliegue (Northflank)
@@ -348,5 +366,6 @@ permiso **Fijar mensajes** (respaldo).
   aviso 📈 VENTA a las 16:30 Madrid).
 - 2026-10-12 — Nasdaq: avisos con USTEC ≈ y puntos; sin avisos repetidos tras un redeploy.
 - 2026-10-16 — Botón 📊 Estadísticas y respaldo de los historiales en un mensaje fijado de Discord.
+- 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

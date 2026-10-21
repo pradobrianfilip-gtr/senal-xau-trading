@@ -1,0 +1,30 @@
+fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,nota
+2026-10-12,apertura,venta,0.5+0.3+0.3,,,58.84,3,,,3 ventas (la 1.ª antes de la confirmación); sin desglose por operación
+2026-10-13,apertura,venta,0.3+0.3,,,-57.00,2,0,2,2 ventas antes de la confirmación (la regla decía compra)
+2026-10-14,noche,compra,0.5,30588.6,30650.0,27.40,,,,
+2026-10-14,apertura,compra,0.5,30437.3,30003.9,-194.98,,,,vela equivocada (14:30) y sin stop
+2026-10-15,noche,venta,0.8,29869.0,29807.3,44.21,,,,
+2026-10-15,apertura,venta,0.5,29559.9,29527.7,14.36,,,,antes de la confirmación
+2026-10-15,apertura,venta,0.5,29525.6,29517.3,3.70,,,,antes de la confirmación
+2026-10-15,apertura,compra,0.5,29630.3,29718.1,39.20,,,,
+2026-10-15,apertura,compra,0.5,29634.3,29716.9,36.88,,,,
+2026-10-16,noche,venta,0.3,29897.5,29762.0,36.26,,,,
+2026-10-16,noche,venta,0.3,29898.0,29868.3,7.91,,,,
+2026-10-16,apertura,venta,0.2,29688.3,29681.0,1.30,,,,
+2026-10-16,apertura,venta,0.2,29738.3,29650.8,15.55,,,,
+2026-10-16,apertura,venta,0.2,29723.1,29651.0,12.81,,,,
+2026-10-19,noche,compra,0.2,29333.4,29524.6,34.05,,,,
+2026-10-19,noche,compra,0.2,29329.9,29573.7,43.42,,,,
+2026-10-19,apertura,compra,0.5,29507.1,29578.0,31.61,,,,
+2026-10-19,apertura,compra,0.5,29586.9,29661.6,33.30,,,,
+2026-10-19,apertura,compra,0.5,29588.1,29663.2,33.48,,,,
+2026-10-19,apertura,compra,0.1,29586.2,29664.0,6.94,,,,
+2026-10-19,apertura,compra,0.1,29588.2,29670.5,7.34,,,,
+2026-10-20,noche,venta,0.1,29525.9,29424.2,9.06,,,,
+2026-10-20,noche,venta,0.1,29525.8,29427.2,8.78,,,,
+2026-10-20,apertura,venta,0.1,29216.9,29772.1,-49.43,,,,antes de la confirmación y sin stop
+2026-10-20,apertura,venta,0.1,29231.9,29771.7,-48.06,,,,antes de la confirmación y sin stop
+2026-10-21,noche,compra,0.1,29787.9,29566.2,-19.77,,,,sin stop
+2026-10-21,noche,compra,0.1,29788.7,29567.9,-19.69,,,,sin stop
+2026-10-21,apertura,compra,0.1,29716.6,29863.4,13.08,,,,
+2026-10-21,apertura,compra,0.1,29722.8,29869.1,13.04,,,,

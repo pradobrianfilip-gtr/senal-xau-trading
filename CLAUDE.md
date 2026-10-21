@@ -91,6 +91,15 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   adjuntos de **un mensaje fijado** ("📦 Respaldo de datos del bot de senales (no borrar)") que
   se edita cuando algo cambia (`respaldo_periodicamente`, cada 5 min) y se recuperan al arrancar
   si el disco viene vacío. Necesita el permiso **Fijar mensajes** — decisión del usuario.
+- 2026-10-21 — **Comando `!USTEC`** (también `!nasdaq` y botón 📈 USTEC) con las operaciones
+  **manuales** del usuario en el Nasdaq (regla de la caja: 📦 apertura y 🌙 noche): una línea por
+  día ("Oct21/26: 4 operaciones -- profit 2 · loss 2 · 50 % · −13,34 € (acumulado 76 %)") y el
+  total (operaciones, profit/loss, % de acierto, días positivos/negativos, resultado y media por
+  día, y desglose apertura/noche). Los datos están en **`operaciones_ustec.csv`** (una fila por
+  operación; un grupo sin desglose lleva `operaciones` > 1). **Claude añade ahí cada operación que
+  el usuario manda** (además de anotarla abajo, en "Pendiente"); el bot lee el archivo de `main`
+  en GitHub (repo público), así que se actualiza al aceptar el PR **sin redeploy**; si GitHub no
+  responde, usa la copia del despliegue — decisión del usuario.
 - 2026-10-06 — **`!stats` como el de ATLAS**: separa la estrategia FVG de la clásica, con
   acierto, Profit Factor, resultado acumulado y drawdown en R, desglose por tipo de evento y
   señales abiertas — decisión del usuario.
@@ -309,6 +318,8 @@ respaldo de Discord):
 - `historial_nasdaq.csv` — una fila por operación del Nasdaq cerrada (entrada, salida, % y motivo).
 - `nasdaq_estado.json` — avisos del Nasdaq ya mandados hoy (zona de ruido y R1).
 - `historial_nasdaq_r1.csv` — una fila por operación R1 cerrada (TP/SL/CIERRE y resultado en R).
+- `operaciones_ustec.csv` (en el repo, no en el disco) — operaciones manuales del usuario para `!USTEC`;
+  lo mantiene Claude y el bot lo lee de GitHub (`URL_OPERACIONES_USTEC`).
 
 ## Configuración / variables de entorno
 
@@ -324,7 +335,7 @@ respaldo de Discord):
 | `DISCORD_CHANNEL_ID_RESPALDO` | Canal del mensaje de respaldo (por defecto, el de señales) | No |
 | `PORT` | Puerto del health check (8080) | No |
 
-El bot necesita el intent **Message Content** (para `!stats`; el botón 📊 funciona sin él) y el
+El bot necesita el intent **Message Content** (para `!stats` y `!USTEC`; los botones 📊 y 📈 funcionan sin él) y el
 permiso **Fijar mensajes** (respaldo).
 
 ## Despliegue (Northflank)
@@ -355,5 +366,6 @@ permiso **Fijar mensajes** (respaldo).
   aviso 📈 VENTA a las 16:30 Madrid).
 - 2026-10-12 — Nasdaq: avisos con USTEC ≈ y puntos; sin avisos repetidos tras un redeploy.
 - 2026-10-16 — Botón 📊 Estadísticas y respaldo de los historiales en un mensaje fijado de Discord.
+- 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

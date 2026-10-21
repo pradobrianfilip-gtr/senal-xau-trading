@@ -2206,6 +2206,124 @@ def generar_reporte_estadisticas():
     return embed
 
 
+# ---------------------------------------------------------------------------
+# !USTEC (2026-10-21): registro de las operaciones MANUALES del usuario en el
+# Nasdaq (su regla de la caja: apertura 15:00 -> 16:30 y noche 22:45). Las
+# apunta Claude en operaciones_ustec.csv a partir de sus capturas de MetaTrader;
+# el bot lee el archivo de main en GitHub (el repo es publico), asi que tras
+# aceptar el PR se actualiza solo, sin redeploy. Si GitHub no responde, usa la
+# copia que viene con el despliegue.
+# ---------------------------------------------------------------------------
+
+ARCHIVO_OPERACIONES_USTEC = os.environ.get("ARCHIVO_OPERACIONES_USTEC", "operaciones_ustec.csv")
+URL_OPERACIONES_USTEC = ("https://raw.githubusercontent.com/pradobrianfilip-gtr/senal-xau-trading/"
+                         "main/operaciones_ustec.csv")
+MESES_CORTOS = ("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+COLOR_USTEC = 0xF57C00
+
+
+def _leer_operaciones_ustec():
+    """Filas del registro (de GitHub o, si falla, de la copia local) y de donde salieron."""
+    try:
+        r = requests.get(URL_OPERACIONES_USTEC, timeout=10)
+        r.raise_for_status()
+        return list(csv.DictReader(r.text.splitlines())), "GitHub"
+    except Exception as e:
+        print(f"!USTEC: no se pudo leer el registro de GitHub ({_sin_secretos(e)}); uso la copia local.")
+    with open(ARCHIVO_OPERACIONES_USTEC, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f)), "copia local"
+
+
+def _num(texto, defecto=None):
+    try:
+        return float(str(texto).replace(",", "."))
+    except (TypeError, ValueError):
+        return defecto
+
+
+def resumen_operaciones_ustec(filas):
+    """Por dia y en total: operaciones, ganadoras, perdedoras, sin desglose y euros.
+    Una fila es una operacion; si trae 'operaciones' > 1 es un grupo (con sus
+    ganadoras/perdedoras si se conocen; si no, cuentan como 'sin desglose')."""
+    dias, partes = {}, {}
+    for fila in filas:
+        fecha, eur = (fila.get("fecha") or "").strip(), _num(fila.get("eur"))
+        if not fecha or eur is None:
+            continue
+        n = int(_num(fila.get("operaciones"), 1) or 1)
+        g, p = _num(fila.get("ganadoras")), _num(fila.get("perdedoras"))
+        if g is None and p is None:
+            g, p = (1 if eur > 0 else 0, 1 if eur < 0 else 0) if n == 1 else (0, 0)
+        g, p = int(g or 0), int(p or 0)
+        for clave, destino in ((fecha, dias), ((fila.get("estrategia") or "?").strip(), partes)):
+            d = destino.setdefault(clave, {"n": 0, "g": 0, "p": 0, "eur": 0.0})
+            d["n"] += n
+            d["g"] += g
+            d["p"] += p
+            d["eur"] += eur
+    return dict(sorted(dias.items())), partes
+
+
+def _fecha_corta(fecha_iso):
+    try:
+        f = datetime.strptime(fecha_iso, "%Y-%m-%d")
+        return f"{MESES_CORTOS[f.month - 1]}{f.day:02d}/{f.year % 100:02d}"
+    except ValueError:
+        return fecha_iso
+
+
+def _pct(g, p):
+    return f"{g / (g + p) * 100:.0f} %" if g + p else "-"
+
+
+def _eur(x):
+    return f"{x:+.2f} €".replace(".", ",")
+
+
+def generar_reporte_ustec():
+    """Embed del comando !USTEC: una linea por dia con el acumulado y el total."""
+    try:
+        filas, fuente = _leer_operaciones_ustec()
+    except Exception as e:
+        return discord.Embed(title="📈 USTEC -- sin registro",
+                             description=f"No se pudo leer el registro de operaciones: {_sin_secretos(e)}",
+                             color=0xE24B4A)
+    dias, partes = resumen_operaciones_ustec(filas)
+    if not dias:
+        return discord.Embed(title="📈 USTEC -- sin operaciones",
+                             description="Todavia no hay operaciones apuntadas.", color=COLOR_USTEC)
+    lineas, acum = [], {"n": 0, "g": 0, "p": 0, "eur": 0.0}
+    for fecha, d in dias.items():
+        for k in acum:
+            acum[k] += d[k]
+        sin = d["n"] - d["g"] - d["p"]
+        icono = "✅" if d["eur"] > 0 else "❌" if d["eur"] < 0 else "➖"
+        lineas.append(
+            f"{icono} **{_fecha_corta(fecha)}:** {d['n']} operaciones -- profit {d['g']} · loss {d['p']}"
+            + (f" · sin desglose {sin}" if sin else "")
+            + f" · {_pct(d['g'], d['p'])} · {_eur(d['eur'])} _(acumulado {_pct(acum['g'], acum['p'])})_")
+    dias_pos = sum(1 for d in dias.values() if d["eur"] > 0)
+    dias_neg = sum(1 for d in dias.values() if d["eur"] < 0)
+    sin_total = acum["n"] - acum["g"] - acum["p"]
+    lineas += [
+        "",
+        f"**Total hasta {_fecha_corta(list(dias)[-1])}:** {acum['n']} operaciones -- "
+        f"profit **{acum['g']}** · loss **{acum['p']}**"
+        + (f" · sin desglose {sin_total}" if sin_total else ""),
+        f"**Acierto por operaciones:** {_pct(acum['g'], acum['p'])}",
+        f"**Días:** {len(dias)} operados -- {dias_pos} positivos · {dias_neg} negativos "
+        f"({dias_pos / len(dias) * 100:.0f} % de días positivos)",
+        f"**Resultado:** {_eur(acum['eur'])} ({_eur(acum['eur'] / len(dias))} de media por día)",
+    ]
+    nombres = {"apertura": "📦 Apertura (15:00 → 16:30)", "noche": "🌙 Noche (caja de las 22:45)"}
+    for clave, d in sorted(partes.items()):
+        lineas.append(f"{nombres.get(clave, clave)}: {d['n']} ops -- profit {d['g']} · loss {d['p']} · "
+                      f"{_pct(d['g'], d['p'])} · {_eur(d['eur'])}")
+    embed = discord.Embed(title="📈 USTEC -- tus operaciones del Nasdaq", description="\n".join(lineas),
+                          color=COLOR_USTEC)
+    embed.set_footer(text=f"Registro: {fuente} · Hora Madrid: {hora_madrid()}")
+    return embed
+
 # --- Cliente de Discord (bot de verdad, no un webhook) ---
 intents = discord.Intents.default()
 intents.message_content = True  # necesario para leer comandos de texto como !stats
@@ -3391,6 +3509,14 @@ class VistaMonitor(discord.ui.View):
         embed = await asyncio.to_thread(generar_reporte_estadisticas)
         await interaction.followup.send(embed=embed)
 
+    # Lo mismo que !USTEC (tus operaciones manuales del Nasdaq).
+    @discord.ui.button(label="USTEC", style=discord.ButtonStyle.secondary,
+                        emoji="📈", custom_id="operaciones_ustec")
+    async def boton_ustec(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True)
+        embed = await asyncio.to_thread(generar_reporte_ustec)
+        await interaction.followup.send(embed=embed)
+
 
 # ---------------------------------------------------------------------------
 # RESPALDO DEL HISTORIAL EN DISCORD (2026-10-16): el disco de Northflank no se
@@ -3619,7 +3745,7 @@ async def on_ready():
                 f"Vigilando con velas reales ({GRANULARIDAD}), filtradas por la "
                 f"tendencia del dia y confirmadas por RSI. Te aviso solo cuando "
                 f"detecte algo confirmado -- y puedes presionar los botones de abajo "
-                f"para revisar el estado o ver las estadisticas (tambien con !stats)."
+                f"para revisar el estado o ver las estadisticas (tambien con !stats y !USTEC)."
                 + ("\n📈 Y en prueba: **Nasdaq (USTEC), zona de ruido** -- avisos de 15:30 a 22:00 "
                    "Madrid (sesion de Wall Street)." if NASDAQ_ACTIVO else "")
                 + ("\n📊 Y **Nasdaq R1** (solo compras): 3 velas M15 por encima del R1, SL 0,2 % / TP 0,5 %."
@@ -3652,6 +3778,13 @@ async def on_message(message):
         return
 
     contenido = message.content.strip().lower()
+    if contenido in ("!ustec", "!nasdaq"):
+        try:
+            embed = await asyncio.to_thread(generar_reporte_ustec)
+            await message.channel.send(embed=embed)
+        except Exception as e:
+            print(f"Error con !USTEC ({_sin_secretos(e)})")
+        return
     if contenido not in ("!stats", "!estadisticas", "!estadísticas"):
         return
 

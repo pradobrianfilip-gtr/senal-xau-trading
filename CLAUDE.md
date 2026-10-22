@@ -238,9 +238,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   cierre) y ruptura durante la noche. Se evalúan como una sola prueba. Por día (la noche cuenta
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
-  77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) →
-  **total +143,59 €** en 32 operaciones (📦 −28,04 € + 🌙 +171,63 €); su cuenta demo: 700 € →
-  1.089,41 € el 21/10 (cuadra al céntimo con el historial; la misma cuenta lleva
+  77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
+  22/10 +21,03 € (🌙) → **total +164,62 €** en 33 operaciones (📦 −28,04 € + 🌙 +192,66 €); su
+  cuenta demo: 700 € → 1.110,44 € el 22/10 (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -277,7 +277,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-10-21 (miércoles; caja de las 22:45 del 20) | Al alza | **2 compras de 0,1** en 29.787,9 / 29.788,7 → 29.566,2 / 29.567,9, cerradas a las 12:03 (**~−221 pts**, sin stop de 0,2 %: con él, ~−11 €) | ❌ **−39,46 €** (−19,77 y −19,69): primera noche perdedora |
 
-    Acumulado 🌙 hasta el 21/10: **+171,63 €** (5 de 6 noches ganadoras).
+    | 2026-10-22 (jueves; caja de las 22:45 del 21) | A la baja | **1 venta de 0,1** en 29.730,7 → 29.494,3, cerrada a las 05:53 (~+236 pts) | ✅ **+21,03 €** |
+
+    Acumulado 🌙 hasta el 22/10: **+192,66 €** (6 de 7 noches ganadoras).
 
 ## Arquitectura
 

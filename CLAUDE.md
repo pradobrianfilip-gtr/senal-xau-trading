@@ -8,6 +8,7 @@ El usuario no debería tener que repetir nada que ya esté escrito aquí.
 ## Cómo trabajar en este repo
 
 - Idioma: todo en **español** (conversación, comentarios, mensajes de Discord, commits).
+- **Respuestas cortas y concretas** (pedido del usuario el 2026-10-22): lo esencial, sin rodeos.
 - Antes de cambiar algo, leer este archivo completo y respetar las decisiones vigentes.
 - Si una petición nueva contradice una decisión anterior, **preguntar** antes de cambiarla
   y, si se confirma, actualizar la decisión aquí (no borrar el historial).

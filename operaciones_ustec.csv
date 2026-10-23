@@ -29,3 +29,6 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-10-21,apertura,compra,0.1,29716.6,29863.4,13.08,,,,
 2026-10-21,apertura,compra,0.1,29722.8,29869.1,13.04,,,,
 2026-10-22,noche,venta,0.1,29730.7,29494.3,21.03,,,,
+2026-10-22,apertura,compra,0.1,29391.3,29306.1,-7.61,,,,
+2026-10-22,apertura,venta,0.1,29261.4,29092.0,15.12,,,,
+2026-10-22,apertura,venta,0.1,29255.7,29095.0,14.34,,,,

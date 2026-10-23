@@ -228,6 +228,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     18:45 / 18:50 (~+147 pts, después de la 5.ª vela) → ✅ **+26,12 €** (+13,08 y +13,04);
     acumulado 📦 **−28,04 €**. Ese día también 2 ventas de oro (+11,41 y +30,39 €), fuera de la prueba.
 
+    2026-10-22: compra 0,1 29.391,3 → 29.306,1 cerrada a las 17:13 (❌ −7,61 €, −85 pts) y 2 ventas de
+    0,1 en 29.261,4 / 29.255,7 → 29.092,0 / 29.095,0 cerradas a las 18:46 (✅ +15,12 y +14,34 €,
+    ~+165 pts) → **+21,85 €**; acumulado 📦 **−6,19 €**. Oro ese día: +45,28 €, fuera de la prueba.
+
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
@@ -240,8 +244,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
-  22/10 +21,03 € (🌙) → **total +164,62 €** en 33 operaciones (📦 −28,04 € + 🌙 +192,66 €); su
-  cuenta demo: 700 € → 1.110,44 € el 22/10 (cuadra al céntimo con el historial; la misma cuenta lleva
+  22/10 +42,88 € (+21,03 🌙 + 21,85 📦) → **total +186,47 €** en 36 operaciones (📦 −6,19 € + 🌙
+  +192,66 €); su cuenta demo: 700 € → 1.177,57 € el 22/10 (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o

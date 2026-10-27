@@ -232,6 +232,15 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     0,1 en 29.261,4 / 29.255,7 → 29.092,0 / 29.095,0 cerradas a las 18:46 (✅ +15,12 y +14,34 €,
     ~+165 pts) → **+21,85 €**; acumulado 📦 **−6,19 €**. Oro ese día: +45,28 €, fuera de la prueba.
 
+    2026-10-23: 2 compras de 0,1 (~28.982 → ~29.063, cerradas a las 18:11) → ✅ **+14,54 €**.
+    2026-10-26 (**primer día tras el cambio de hora de Europa**; esta semana su gráfico = Madrid + 2 h):
+    no sabía qué vela tomar, hizo la caja en otra hora y vendió 2 × 0,5 en 29.048,2 / 29.044,4 **sin
+    stop**, cerradas a las 19:08 en ~29.327 (**~−280 pts**) → ❌ **−250,87 €** (−123,40 y −127,47). Con
+    el stop de 0,2 % (~58 pts) habrían sido ~−52 €. Se le aclaró que el gráfico sigue a Nueva York
+    (caja 15:00 / confirmación 16:30 **del gráfico** siempre; en Madrid 13:00 / 14:30 del 26 al 30/10).
+    2026-10-27: 2 compras de 0,5 (~29.444 → ~29.532, cerradas a las 17:55) → ✅ **+78,94 €**.
+    Acumulado 📦 **−163,58 €**; pérdidas por saltarse la regla o sin stop: −600,34 €.
+
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
     es dejar correr (5.ª vela: +0,05 / +0,08 / +0,10 R; TP 0,4 % = 2:1: +0,02 / +0,06 / +0,22 R).
@@ -244,8 +253,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   el día en que se cerró): 12/10 +58,84 € · 13/10 −57,00 € · 14/10 −167,58 € (−194,98 + 27,40) ·
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
-  22/10 +42,88 € (+21,03 🌙 + 21,85 📦) → **total +186,47 €** en 36 operaciones (📦 −6,19 € + 🌙
-  +192,66 €); su cuenta demo: 700 € → 1.177,57 € el 22/10 (cuadra al céntimo con el historial; la misma cuenta lleva
+  22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
+  27/10 +138,19 € (+59,25 🌙 + 78,94 📦) → **total +120,94 €** en 46 operaciones (📦 −163,58 € + 🌙
+  +284,52 €); su cuenta demo: 700 € → 1.097,85 € el 27/10 (swap acumulado −14,75 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -284,7 +294,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-10-22 (jueves; caja de las 22:45 del 21) | A la baja | **1 venta de 0,1** en 29.730,7 → 29.494,3, cerrada a las 05:53 (~+236 pts) | ✅ **+21,03 €** |
 
-    Acumulado 🌙 hasta el 22/10: **+192,66 €** (6 de 7 noches ganadoras).
+    | 2026-10-26 (lunes; caja de las 22:45 del viernes 23, abierta el fin de semana) | Al alza | **compras de 0,5 y 0,2** en 29.087,1 / 29.084,7 → 29.138,4 / 29.139,4, cerradas a la 01:00 del lunes | ✅ **+32,61 €** (ojo: el swap del fin de semana restó ~−14,5 €) |
+    | 2026-10-27 (martes; caja de las 22:45 del 26) | A la baja | **2 ventas de 0,5** en 29.265,6 / 29.257,2 → 29.204,3 / 29.186,2, cerradas a las 08:28 / 08:30 | ✅ **+59,25 €** |
+
+    Acumulado 🌙 hasta el 27/10: **+284,52 €** (8 de 9 noches ganadoras).
 
 ## Arquitectura
 

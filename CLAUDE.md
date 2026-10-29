@@ -40,6 +40,12 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-10-29 — **Nasdaq del bot apartado**: `NASDAQ_ACTIVO = False` y `NASDAQ_R1_ACTIVO = False`
+  (zona de ruido y R1 ya no avisan ni piden datos del QQQ; el código y sus historiales se quedan
+  para volver a activarlos). Señales se centra **solo en el oro** (FVG experimental). `!USTEC` (las
+  operaciones manuales del usuario) sigue funcionando. Motivo: casi no daban avisos y el usuario
+  gana más con su propia regla — decisión del usuario.
+
 - 2026-10-09 — **Nasdaq R1, SOLO COMPRAS, EN PRUEBA (demo)** (`NASDAQ_R1_ACTIVO = True`), del
   vídeo de TikTok de @hobbiecode que mandó el usuario: pivotes clásicos con la **sesión de
   ayer del QQQ** (P = (máx + mín + cierre)/3, R1 = 2P − mín); la primera vez en el día que
@@ -387,5 +393,6 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-12 — Nasdaq: avisos con USTEC ≈ y puntos; sin avisos repetidos tras un redeploy.
 - 2026-10-16 — Botón 📊 Estadísticas y respaldo de los historiales en un mensaje fijado de Discord.
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
+- 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

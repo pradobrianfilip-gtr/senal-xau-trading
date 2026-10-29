@@ -265,8 +265,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   15/10 +138,35 € (+94,14 + 44,21) · 16/10 +73,83 € (+29,66 + 44,17) · 19/10 +190,14 € (+112,67 +
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
   22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
-  27/10 +138,19 € (+59,25 🌙 + 78,94 📦) → **total +120,94 €** en 46 operaciones (📦 −163,58 € + 🌙
-  +284,52 €); su cuenta demo: 700 € → 1.097,85 € el 27/10 (swap acumulado −14,75 €) (cuadra al céntimo con el historial; la misma cuenta lleva
+  27/10 +138,19 € (+59,25 🌙 + 78,94 📦) · 29/10 +185,22 € (🌙) → **total +306,16 €** en 52 operaciones
+  (📦 −163,58 € + 🌙 +469,74 €); su cuenta demo: 700 € → 1.379,57 € el 29/10 (swap acumulado −14,75 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -308,7 +308,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | 2026-10-26 (lunes; caja de las 22:45 del viernes 23, abierta el fin de semana) | Al alza | **compras de 0,5 y 0,2** en 29.087,1 / 29.084,7 → 29.138,4 / 29.139,4, cerradas a la 01:00 del lunes | ✅ **+32,61 €** (ojo: el swap del fin de semana restó ~−14,5 €) |
     | 2026-10-27 (martes; caja de las 22:45 del 26) | A la baja | **2 ventas de 0,5** en 29.265,6 / 29.257,2 → 29.204,3 / 29.186,2, cerradas a las 08:28 / 08:30 | ✅ **+59,25 €** |
 
-    Acumulado 🌙 hasta el 27/10: **+284,52 €** (8 de 9 noches ganadoras).
+    | 2026-10-29 (jueves; caja de las 22:45 del 28) | A la baja | **6 ventas de 0,5** en 3 tandas (~+30 € cada una, ~68–70 pts): 29.674,9 / 29.676,5 → 29.606,6 cerradas a las 23:38 del 28; 29.575,6 / 29.572,8 → 29.506,7 / 29.503,9 cerradas a la 01:25; 29.519,8 / 29.512,6 → 29.451,8 / 29.443,6 cerradas a las 04:47 / 04:48 | ✅ **+185,22 €** (+30,62, +31,33, +30,90, +30,90, +30,51, +30,96). Ese día también una venta de oro de 0,5 (+96,50 €), fuera de la prueba |
+
+    Acumulado 🌙 hasta el 29/10: **+469,74 €** (9 de 10 noches ganadoras).
 
 ## Arquitectura
 

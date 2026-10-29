@@ -1560,7 +1560,7 @@ def _revisar_fvg(velas):
 # disco): solo se guarda que avisos ya se mandaron. Resultados en % del precio.
 # ---------------------------------------------------------------------------
 
-NASDAQ_ACTIVO = True
+NASDAQ_ACTIVO = False  # 2026-10-29: apartado por el usuario (zona de ruido y R1); el codigo sigue
 NASDAQ_SIMBOLO = "QQQ"
 NASDAQ_DIAS_RUIDO = 14
 NASDAQ_VELAS_5M = 1300  # ~16 sesiones de 78 velas de 5 min
@@ -1774,7 +1774,7 @@ def _formatear_evento_nasdaq(ev):
 # zona de ruido (sin consultas extra). Resultados en R.
 # ---------------------------------------------------------------------------
 
-NASDAQ_R1_ACTIVO = True
+NASDAQ_R1_ACTIVO = False  # 2026-10-29: apartado por el usuario
 NASDAQ_R1_VELAS_SEGUIDAS = 3
 NASDAQ_R1_SL_PCT = 0.2
 NASDAQ_R1_TP_PCT = 0.5

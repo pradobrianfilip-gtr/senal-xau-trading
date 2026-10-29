@@ -40,6 +40,11 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-10-29 — **FVG: hasta 5 señales al día** (`FVG_MAX_POR_DIA = 5`, antes 1). El usuario pidió
+  mínimo 5 al día; la FVG no da tantas (con tope 1 salían ~2,4 por semana) y ninguna regla que gane
+  en el laboratorio da 5 al día, así que se sube el tope: saldrán todas las que cumplan, sin
+  rellenar con señales malas (backtest con 3/día: −0,06 / −0,09 / +0,23 R) — decisión del usuario.
+
 - 2026-10-29 — **Nasdaq del bot apartado**: `NASDAQ_ACTIVO = False` y `NASDAQ_R1_ACTIVO = False`
   (zona de ruido y R1 ya no avisan ni piden datos del QQQ; el código y sus historiales se quedan
   para volver a activarlos). Señales se centra **solo en el oro** (FVG experimental). `!USTEC` (las
@@ -82,7 +87,7 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   sesgo del día (EMA20 diaria + dirección del día) → FVG a favor sin rellenar en H1 y M30
   (24 h) → entrada al rechazo de un FVG M15 (últimas 4 h). Continuación tras cerrar fuera del
   máximo/mínimo de ayer y giro tras un barrido de esos niveles. SL tras el FVG M15 + 0,5×ATR,
-  TP 2R, 07–20 UTC, máx. 1 al día (antes 3; ver abajo), una a la vez. Es la variante V4 del laboratorio
+  TP 2R, 07–20 UTC, máx. 5 al día (antes 1 y 3; ver abajo), una a la vez. Es la variante V4 del laboratorio
   (`BOT_ATLAS/backtest`, ronda 4), que **no pasa con costes** (−0,05/−0,10 R en 2012–17 y
   2018–22; +0,23 R en 2026): se deja correr para observarla en vivo — decisión del usuario.
 - 2026-10-07 — **FVG: máximo 1 señal al día** (`FVG_MAX_POR_DIA = 1`; como mucho 5 por
@@ -394,5 +399,6 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-16 — Botón 📊 Estadísticas y respaldo de los historiales en un mensaje fijado de Discord.
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
+- 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

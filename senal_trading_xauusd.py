@@ -1275,7 +1275,7 @@ def _formatear_resultado(senal, resultado):
 # en disco): asi un reinicio no pierde las rupturas/barridos del dia.
 # ---------------------------------------------------------------------------
 
-FVG_MAX_POR_DIA = 1  # decision del usuario (2026-10-07): 1 al dia -> como mucho 5 por semana
+FVG_MAX_POR_DIA = 5  # decision del usuario (2026-10-29): hasta 5 al dia (antes 1); es un tope, no un minimo
 FVG_VELAS_DIARIAS = 60
 _cache_diarias_fvg = {"velas": [], "momento": None}
 

@@ -48,3 +48,11 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-10-29,noche,venta,0.5,29572.8,29503.9,30.90,,,,
 2026-10-29,noche,venta,0.5,29519.8,29451.8,30.51,,,,
 2026-10-29,noche,venta,0.5,29512.6,29443.6,30.96,,,,
+2026-10-29,apertura,venta,5,29388.5,29370.8,79.55,,,,lote de 5
+2026-10-29,apertura,venta,5,29383.5,29367.0,74.16,,,,lote de 5
+2026-10-29,apertura,venta,1,29374.1,29332.4,37.47,,,,
+2026-10-29,apertura,venta,1,29344.9,29295.5,44.39,,,,
+2026-10-30,noche,venta,0.5,29317.1,29245.7,31.98,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01
+2026-10-30,noche,venta,0.5,29318.4,29245.7,32.56,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01
+2026-10-30,noche,venta,0.1,28949.7,28722.7,20.26,,,,
+2026-10-30,noche,venta,0.1,28946.1,28708.9,21.16,,,,

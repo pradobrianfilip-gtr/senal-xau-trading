@@ -68,3 +68,5 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-11-04,apertura,compra,0.1,28691.9,28273.1,-37.20,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts)
 2026-11-04,apertura,compra,1.7,28404.3,28421.3,25.67,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)
 2026-11-04,apertura,compra,1.7,28406.1,28429.8,35.79,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)
+2026-11-04,apertura,compra,0.5,28696.9,28808.3,49.54,,,,
+2026-11-04,apertura,compra,0.5,28754.9,28759.0,1.82,,,,

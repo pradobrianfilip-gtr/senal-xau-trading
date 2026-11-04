@@ -56,3 +56,15 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-10-30,noche,venta,0.5,29318.4,29245.7,32.56,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01
 2026-10-30,noche,venta,0.1,28949.7,28722.7,20.26,,,,
 2026-10-30,noche,venta,0.1,28946.1,28708.9,21.16,,,,
+2026-11-02,apertura,compra,0.5,28651.9,28709.4,25.65,,,,
+2026-11-02,apertura,compra,0.3,28658.1,28686.0,7.47,,,,
+2026-11-03,noche,compra,1.4,28058.1,28106.1,60.08,,,,caja de las 22:45 del 2
+2026-11-03,noche,compra,1.4,28093.5,28138.1,55.81,,,,caja de las 22:45 del 2
+2026-11-03,apertura,compra,1.7,28181.9,28225.2,65.81,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30)
+2026-11-03,apertura,compra,1.7,28191.5,28226.2,52.74,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30)
+2026-11-04,noche,compra,1.7,28296.7,28319.0,33.88,,,,caja de las 22:45 del 3
+2026-11-04,noche,compra,1.7,28293.1,28318.7,38.90,,,,caja de las 22:45 del 3
+2026-11-04,apertura,compra,0.1,28697.5,28276.9,-37.35,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts)
+2026-11-04,apertura,compra,0.1,28691.9,28273.1,-37.20,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts)
+2026-11-04,apertura,compra,1.7,28404.3,28421.3,25.67,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)
+2026-11-04,apertura,compra,1.7,28406.1,28429.8,35.79,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)

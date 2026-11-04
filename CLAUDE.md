@@ -266,7 +266,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     2026-11-04: 2 compras de 1,7 en 28.404,3 / 28.406,1 → 28.421,3 / 28.429,8, cerradas a las 16:37 (también
     antes del cierre de la vela de las 16:30) → ✅ +61,46 €; y 2 compras de 0,1 en 28.697,5 / 28.691,9
     (nivel del 2/11, así que probablemente abiertas ese día) cerradas el 4/11 a las 16:00 en ~28.275
-    **sin stop (~−420 pts)** → ❌ −74,55 €. Día 📦: **−13,09 €**. Acumulado 📦 **+210,57 €**.
+    **sin stop (~−420 pts)** → ❌ −74,55 €. Después, 2 compras de 0,5 en 28.696,9 / 28.754,9 → 28.808,3 /
+    28.759,0, cerradas a las 17:14 / 17:21 → ✅ +51,36 € (+49,54 y +1,82). Día 📦: **+38,27 €**. Acumulado 📦 **+261,93 €**.
     Con 1,7 lotes un stop de 0,2 % (~57 pts) son ~−86 € por operación (~−172 € las dos).
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
@@ -283,9 +284,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
   22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
   27/10 +138,19 € (+59,25 🌙 + 78,94 📦) · 29/10 +420,79 € (+185,22 🌙 + 235,57 📦) · 30/10 +105,96 € (🌙) ·
-  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +59,69 € (+72,78 🌙 − 13,09 📦)
-  → **total +974,94 €** en 72 operaciones (📦 +210,57 € + 🌙 +764,37 €); su cuenta demo: 700 € →
-  2.053,56 € el 4/11 (swap acumulado −40,47 €) (cuadra al céntimo con el historial; la misma cuenta lleva
+  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦)
+  → **total +1.026,30 €** en 74 operaciones (📦 +261,93 € + 🌙 +764,37 €); su cuenta demo: 700 € →
+  2.104,92 € el 4/11 (swap acumulado −40,47 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o

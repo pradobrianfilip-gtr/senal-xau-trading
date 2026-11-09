@@ -269,6 +269,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     **sin stop (~−420 pts)** → ❌ −74,55 €. Después, 2 compras de 0,5 en 28.696,9 / 28.754,9 → 28.808,3 /
     28.759,0, cerradas a las 17:14 / 17:21 → ✅ +51,36 € (+49,54 y +1,82). Día 📦: **+38,27 €**. Acumulado 📦 **+261,93 €**.
     Con 1,7 lotes un stop de 0,2 % (~57 pts) son ~−86 € por operación (~−172 € las dos).
+    2026-11-09: 4 compras de 0,5: 27.387,7 / 27.394,5 → 27.412,2 / 27.443,3 cerradas a las 16:36 (antes del
+    cierre de la vela de las 16:30; +10,94 y +21,80 €) y 27.588,4 / 27.605,6 → 27.726,0 / 27.745,5 cerradas a
+    las 17:15 (~+138 pts; +61,46 y +62,49 €) → ✅ **+156,69 €**. Acumulado 📦 **+418,62 €**. Del 5 al 6/11 no operó.
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
@@ -284,9 +287,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
   22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
   27/10 +138,19 € (+59,25 🌙 + 78,94 📦) · 29/10 +420,79 € (+185,22 🌙 + 235,57 📦) · 30/10 +105,96 € (🌙) ·
-  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦)
-  → **total +1.026,30 €** en 74 operaciones (📦 +261,93 € + 🌙 +764,37 €); su cuenta demo: 700 € →
-  2.104,92 € el 4/11 (swap acumulado −40,47 €) (cuadra al céntimo con el historial; la misma cuenta lleva
+  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦) · 9/11 +156,69 € (📦)
+  → **total +1.182,99 €** en 78 operaciones (📦 +418,62 € + 🌙 +764,37 €); su cuenta demo: 700 € →
+  2.261,61 € el 9/11 (swap acumulado −40,47 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o

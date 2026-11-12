@@ -74,3 +74,6 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-11-09,apertura,compra,0.5,27394.5,27443.3,21.80,,,,cerrada a las 16:36 (antes del cierre de la vela de las 16:30)
 2026-11-09,apertura,compra,0.5,27588.4,27726.0,61.46,,,,
 2026-11-09,apertura,compra,0.5,27605.6,27745.5,62.49,,,,
+2026-11-11,noche,compra,0.5,27983.7,28003.7,8.96,,,,caja de las 22:45 del 10
+2026-11-11,noche,compra,0.5,27975.7,28002.5,12.00,,,,caja de las 22:45 del 10
+2026-11-11,noche,compra,0.5,27974.7,28000.0,11.33,,,,caja de las 22:45 del 10

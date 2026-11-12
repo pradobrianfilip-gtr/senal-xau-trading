@@ -287,9 +287,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
   22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
   27/10 +138,19 € (+59,25 🌙 + 78,94 📦) · 29/10 +420,79 € (+185,22 🌙 + 235,57 📦) · 30/10 +105,96 € (🌙) ·
-  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦) · 9/11 +156,69 € (📦)
-  → **total +1.182,99 €** en 78 operaciones (📦 +418,62 € + 🌙 +764,37 €); su cuenta demo: 700 € →
-  2.261,61 € el 9/11 (swap acumulado −40,47 €) (cuadra al céntimo con el historial; la misma cuenta lleva
+  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦) · 9/11 +156,69 € (📦) · 11/11 +32,29 € (🌙)
+  → **total +1.215,28 €** en 81 operaciones (📦 +418,62 € + 🌙 +796,66 €); su cuenta demo: 700 € →
+  2.283,82 € el 11/11 (swap acumulado −50,55 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -338,7 +338,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     | 2026-11-03 (martes; caja de las 22:45 del 2) | Al alza | **2 compras de 1,4** en 28.058,1 / 28.093,5 → 28.106,1 / 28.138,1, cerradas a las 01:19 / 01:22 | ✅ **+115,89 €** (+60,08 y +55,81) |
     | 2026-11-04 (miércoles; caja de las 22:45 del 3) | Al alza | **2 compras de 1,7** en 28.296,7 / 28.293,1 → 28.319,0 / 28.318,7, cerradas a la 01:00 / 01:14 | ✅ **+72,78 €** (+33,88 y +38,90) |
 
-    Acumulado 🌙 hasta el 4/11: **+764,37 €** (12 de 13 noches ganadoras).
+    | 2026-11-11 (miércoles; caja de las 22:45 del 10) | Al alza | **3 compras de 0,5** en 27.983,7 / 27.975,7 / 27.974,7 → 28.003,7 / 28.002,5 / 28.000,0, cerradas a las 05:00 (~+20–27 pts) | ✅ **+32,29 €** (+8,96, +12,00 y +11,33; el swap de esa noche restó −10,08 €) |
+
+    Acumulado 🌙 hasta el 11/11: **+796,66 €** (13 de 14 noches ganadoras).
 
 ## Arquitectura
 

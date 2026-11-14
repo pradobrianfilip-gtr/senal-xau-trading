@@ -272,6 +272,8 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
     2026-11-09: 4 compras de 0,5: 27.387,7 / 27.394,5 → 27.412,2 / 27.443,3 cerradas a las 16:36 (antes del
     cierre de la vela de las 16:30; +10,94 y +21,80 €) y 27.588,4 / 27.605,6 → 27.726,0 / 27.745,5 cerradas a
     las 17:15 (~+138 pts; +61,46 y +62,49 €) → ✅ **+156,69 €**. Acumulado 📦 **+418,62 €**. Del 5 al 6/11 no operó.
+    2026-11-12: 2 compras de 0,5 en 28.255,3 / 28.265,8 → 28.325,3 / 28.336,9, cerradas a las 17:53 / 17:54
+    (~+70 pts) → ✅ **+63,79 €** (+31,64 y +32,15). Acumulado 📦 **+482,41 €**.
 
     Nota (2026-10-14): con la entrada al cierre de las 16:30, un TP pequeño sube el acierto pero
     pierde en 10 años (TP 0,1 % ≈ 30 pts: 66 % de acierto, −0,05 / −0,04 / +0,08 R); lo que gana
@@ -287,9 +289,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   77,47) · 20/10 −79,65 € (+17,84 🌙 − 97,49 📦) · 21/10 −13,34 € (−39,46 🌙 + 26,12 📦) ·
   22/10 +42,88 € (+21,03 🌙 + 21,85 📦) · 23/10 +14,54 € (📦) · 26/10 −218,26 € (+32,61 🌙 − 250,87 📦) ·
   27/10 +138,19 € (+59,25 🌙 + 78,94 📦) · 29/10 +420,79 € (+185,22 🌙 + 235,57 📦) · 30/10 +105,96 € (🌙) ·
-  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦) · 9/11 +156,69 € (📦) · 11/11 +32,29 € (🌙)
-  → **total +1.215,28 €** en 81 operaciones (📦 +418,62 € + 🌙 +796,66 €); su cuenta demo: 700 € →
-  2.283,82 € el 11/11 (swap acumulado −50,55 €) (cuadra al céntimo con el historial; la misma cuenta lleva
+  2/11 +33,12 € (📦) · 3/11 +234,44 € (+115,89 🌙 + 118,55 📦) · 4/11 +111,05 € (+72,78 🌙 + 38,27 📦) · 9/11 +156,69 € (📦) · 11/11 +32,29 € (🌙) · 12/11 +63,79 € (📦) · 13/11 +77,45 € (🌙)
+  → **total +1.356,52 €** en 85 operaciones (📦 +482,41 € + 🌙 +874,11 €); su cuenta demo: 700 € →
+  2.425,06 € el 13/11 (swap acumulado −50,55 €) (cuadra al céntimo con el historial; la misma cuenta lleva
   también **operaciones de oro** que no cuentan en esta prueba; el 20/10: +43,18, +29,61 y
   +0,32 €). Siguiendo la
   regla completa ganó siempre; las dos pérdidas grandes, por entrar antes de la confirmación o
@@ -340,7 +342,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     | 2026-11-11 (miércoles; caja de las 22:45 del 10) | Al alza | **3 compras de 0,5** en 27.983,7 / 27.975,7 / 27.974,7 → 28.003,7 / 28.002,5 / 28.000,0, cerradas a las 05:00 (~+20–27 pts) | ✅ **+32,29 €** (+8,96, +12,00 y +11,33; el swap de esa noche restó −10,08 €) |
 
-    Acumulado 🌙 hasta el 11/11: **+796,66 €** (13 de 14 noches ganadoras).
+    | 2026-11-13 (viernes; caja de las 22:45 del 12) | Al alza | **2 compras de 0,5** en 28.393,2 / 28.389,0 → 28.473,4 / 28.480,0, cerradas a la 01:41 / 01:42 (~+80–90 pts) | ✅ **+77,45 €** (+36,28 y +41,17) |
+
+    Acumulado 🌙 hasta el 13/11: **+874,11 €** (14 de 15 noches ganadoras).
 
 ## Arquitectura
 

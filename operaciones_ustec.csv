@@ -77,3 +77,7 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-11-11,noche,compra,0.5,27983.7,28003.7,8.96,,,,caja de las 22:45 del 10
 2026-11-11,noche,compra,0.5,27975.7,28002.5,12.00,,,,caja de las 22:45 del 10
 2026-11-11,noche,compra,0.5,27974.7,28000.0,11.33,,,,caja de las 22:45 del 10
+2026-11-12,apertura,compra,0.5,28255.3,28325.3,31.64,,,,
+2026-11-12,apertura,compra,0.5,28265.8,28336.9,32.15,,,,
+2026-11-13,noche,compra,0.5,28393.2,28473.4,36.28,,,,caja de las 22:45 del 12
+2026-11-13,noche,compra,0.5,28389.0,28480.0,41.17,,,,caja de las 22:45 del 12

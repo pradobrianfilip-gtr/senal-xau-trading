@@ -2331,11 +2331,11 @@ def generar_reporte_ustec():
 # 24 h; de USTEC no hay datos gratis). Simula los ultimos ~60 dias y lo compara
 # con sus operaciones reales (operaciones_ustec.csv). NO manda avisos de entrada.
 # Reglas (hora de su grafico = Nueva York + 7 h; aqui todo va en hora NY):
-#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); confirman solo
-#      la vela de las 16:30 (09:30 NY, apertura) o, si no, la de las 16:45: tiene
-#      que cerrar fuera y medir (maximo - minimo) >= 2x la vela de la caja. Las
-#      de 15:15 a 16:15 solo se observan (el 13/11 la de las 15:30 dio una compra
-#      falsa y la buena fue la venta de las 16:30).
+#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); confirma solo la
+#      vela de las 16:30 (09:30 NY, apertura), que se ve al cerrar a las 16:45:
+#      tiene que cerrar fuera y medir (maximo - minimo) >= 2x la vela de la caja.
+#      Las de 15:15 a 16:15 solo se observan (el 13/11 la de las 15:30 dio una
+#      compra falsa y la buena fue la venta de las 16:30).
 #   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con las velas hasta las
 #      05:00 de su grafico (22:00 NY).
 #   Entrada al cierre de esa vela, TP 70 puntos y tres stops para comparar: 0,2 %,
@@ -2425,7 +2425,7 @@ def caja_simular(velas, m5=None):
             cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
             continue
         if ((caja := cajas.get("apertura")) and not caja["usada"] and caja["fecha"] == t.date()
-                and 9 * 60 + 30 <= minuto <= 9 * 60 + 45):
+                and minuto == 9 * 60 + 30):
             estrategia = "apertura"
             limite = t.replace(hour=16, minute=0)
         elif ((caja := cajas.get("noche")) and not caja["usada"] and caja["fecha"] == t.date()
@@ -2599,9 +2599,9 @@ def generar_reporte_caja():
 
 # ---------------------------------------------------------------------------
 # Avisos en vivo de la caja 📦 (2026-11-15): misma regla que !caja_test, con el
-# formato que pidio el usuario: dia, confirmacion con la vela de las 16:30,
-# doble confirmacion con la de las 16:45, entrada BUY/SELL y el calculo de los
-# 70 pts. Despues avisa si toca el TP o el stop (0,2 %) o, si no, al cierre de
+# formato que pidio el usuario, a las 16:45 de su grafico: dia, confirmacion
+# (la vela de las 16:30 cierra fuera de la caja), "doble" (mide el doble que la
+# de las 15:00), entrada BUY/SELL y el calculo de los 70 pts. Despues avisa si toca el TP o el stop (0,2 %) o, si no, al cierre de
 # Wall Street (16:00 NY = 23:00 en su grafico). Datos del futuro NQ (Yahoo): sus
 # precios no son los de su USTEC, por eso los niveles van en puntos desde su
 # entrada. Solo la apertura; la noche 🌙 sigue solo en !caja_test.
@@ -2624,13 +2624,8 @@ def _caja_avisar(clave, cierre, ahora, titulo, texto, color=COLOR_USTEC):
     enviar_discord(titulo, texto, color=color)
 
 
-def _caja_por_fuera(v, caja, d):
-    """La vela cierra fuera de la caja del lado d (sin mirar el tamano)."""
-    return v["c"] > caja["h"] if d > 0 else v["c"] < caja["l"]
-
-
 def revisar_caja_apertura(ahora=None):
-    """Avisos de la caja 📦 de hoy: entrada (16:30 o 16:45), doble confirmacion y resultado."""
+    """Avisos de la caja 📦 de hoy: entrada a las 16:45 de su grafico (vela de las 16:30) y resultado."""
     ahora = ahora or datetime.now(NUEVA_YORK_TZ)
     minuto = ahora.hour * 60 + ahora.minute
     if not CAJA_AVISOS_ACTIVO or ahora.weekday() >= 5 or not 9 * 60 + 45 <= minuto <= 16 * 60 + 20:
@@ -2640,8 +2635,8 @@ def revisar_caja_apertura(ahora=None):
         estado.update(fecha=ahora.date(), enviados=set(), op=None)
     if "fin" in estado["enviados"]:
         return
-    # Tras la confirmacion (10:00 NY) solo hace falta seguir la operacion, cada 5 min.
-    if minuto > 10 * 60 + 20 and (estado["op"] is None or minuto % 5):
+    # Tras la confirmacion (09:45 NY) solo hace falta seguir la operacion, cada 5 min.
+    if minuto > 10 * 60 + 5 and (estado["op"] is None or minuto % 5):
         return
     try:
         velas = [v for v in _velas_nq_yahoo(rango="1d") if v["t"].date() == ahora.date()]
@@ -2655,28 +2650,18 @@ def revisar_caja_apertura(ahora=None):
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
     rango = caja["h"] - caja["l"]
     dia = f"{DIAS_SEMANA[ahora.weekday()]} {ahora.strftime('%d/%m')}"
-    v1, v2 = por_minuto.get(9 * 60 + 30), por_minuto.get(9 * 60 + 45)
+    v1 = por_minuto.get(9 * 60 + 30)
     fin = lambda v: v["t"] + timedelta(minutes=15)  # noqa: E731
 
     if estado["op"] is None and v1 is not None:
         d = _caja_ruptura(v1, caja)
-        if d:
-            estado["op"] = {"dir": d, "vela": v1, "hora": "16:30"}
-        elif v2 is None:
-            _caja_avisar("espera", fin(v1), ahora, "📦⏳ USTEC -- la vela de las 16:30 no confirma",
+        if not d:
+            _caja_avisar("fin", fin(v1), ahora, "📦➖ USTEC -- hoy no hay entrada",
                          f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
-                         f"➖ La vela de las 16:30 no rompió la caja con el doble de tamaño.\n"
-                         f"⏳ Espero a la de las **16:45** (aviso a las 17:00 de tu gráfico).")
-    if estado["op"] is None and v1 is not None and v2 is not None:
-        d = _caja_ruptura(v2, caja)
-        if d:
-            estado["op"] = {"dir": d, "vela": v2, "hora": "16:45"}
-        else:
-            _caja_avisar("fin", fin(v2), ahora, "📦➖ USTEC -- hoy no hay entrada",
-                         f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
-                         f"Ni la vela de las 16:30 ni la de las 16:45 rompieron la caja con el doble "
+                         f"La vela de las 16:30 ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble "
                          f"de tamaño. **Hoy no se opera la apertura.**", color=0x95A5A6)
             return
+        estado["op"] = {"dir": d, "vela": v1}
     op = estado["op"]
     if op is None:
         return
@@ -2685,25 +2670,16 @@ def revisar_caja_apertura(ahora=None):
     entrada = op["vela"]["c"]
     sl_pts = entrada * CAJA_SL_PCT / 100
     eur = lambda pts: _eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)  # noqa: E731
-    if op["hora"] == "16:30":
-        confirma = "✅ **Confirmación:** vela de las **16:30**\n⏳ Doble confirmación: vela de las 16:45 (aviso a las 17:00)"
-    else:
-        confirma = "➖ Vela de las 16:30: no confirmó\n✅ **Confirmación:** vela de las **16:45**"
     _caja_avisar("entrada", fin(op["vela"]), ahora, f"📦{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
-                 f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n{confirma}\n\n"
-                 f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(fin(op['vela']))} de tu gráfico)\n"
+                 f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
+                 f"✅ **Confirmación:** la vela de las **16:30** cerró "
+                 f"{'por encima' if d > 0 else 'por debajo'} de la caja\n"
+                 f"✅ **Doble:** mide {op['vela']['h'] - op['vela']['l']:.0f} pts, más del doble que la de las 15:00\n\n"
+                 f"**Entra en: {lado}** a mercado (16:45 de tu gráfico)\n"
                  f"🎯 TP: **{'+' if d > 0 else '-'}{CAJA_TP_PUNTOS} pts** desde tu entrada "
                  f"(≈ {eur(CAJA_TP_PUNTOS)} con {str(CAJA_LOTE).replace('.', ',')} lotes)\n"
                  f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {eur(-sl_pts)})",
                  color=0x2ECC71 if d > 0 else 0xE74C3C)
-    if op["hora"] == "16:30" and v2 is not None:
-        if _caja_por_fuera(v2, caja, d):
-            texto, titulo = (f"La vela de las 16:45 también cerró {'por encima' if d > 0 else 'por debajo'} "
-                             f"de la caja: **{lado} confirmado dos veces.**"), "✅ doble confirmación"
-        else:
-            texto, titulo = ("La vela de las 16:45 volvió dentro de la caja: **sin doble confirmación**. "
-                             "Vigila el stop."), "⚠️ sin doble confirmación"
-        _caja_avisar("doble", fin(v2), ahora, f"📦 USTEC -- {lado}: {titulo}", texto)
 
     sl = entrada * (1 - d * CAJA_SL_PCT / 100)
     tp = entrada + d * CAJA_TP_PUNTOS
@@ -4121,7 +4097,7 @@ async def revisar_nasdaq_periodicamente():
 # configuradas (no rompen nada si no se usan).
 @tasks.loop(minutes=1)
 async def revisar_caja_periodicamente():
-    # Caja 📦 de USTEC: cada minuto de 09:45 a 10:20 NY (16:45-17:20 en su grafico)
+    # Caja 📦 de USTEC: cada minuto de 09:45 a 10:05 NY (16:45-17:05 en su grafico)
     # y luego cada 5 min mientras haya operacion; fuera de eso no pide nada.
     try:
         await asyncio.to_thread(revisar_caja_apertura)

@@ -42,12 +42,15 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
 
 - 2026-11-15 — **Regla de la caja de USTEC, para pasarla al bot** (definida por el usuario con su
   gráfico del 13/11 y su explicación del 15/11): 📦 caja = **máximo y mínimo de la vela de las 15:00**
-  de su gráfico (08:00 NY); se miran las 7 velas siguientes y la **primera, hasta la de las 16:45**
-  (09:45 NY, "máxima confirmación"), que **cierre fuera** de la caja y **mida el doble que la vela de
-  las 15:00** (máximo − mínimo) marca el sentido; objetivo del usuario: **mínimo 30 € por operación**
+  de su gráfico (08:00 NY); **confirman solo la vela de las 16:30** (09:30 NY, apertura) **o, si no, la
+  de las 16:45** ("máxima confirmación"; las de 15:15 a 16:15 solo se observan): tiene que **cerrar
+  fuera** de la caja y **medir el doble que la vela de las 15:00** (máximo − mínimo). El 15/11, con el
+  primer `!caja_test`, el bot compró el 13/11 con la vela de las 15:30 y el usuario aclaró que la
+  buena era la venta de las 16:30; objetivo del usuario: **mínimo 30 € por operación**
   (70 pts ≈ 31 € con 0,5 lotes). (Él dice que las 15:00 es "30 min antes de abrir NY", pero en su
   gráfico la vela de las 15:00 son las 08:00 NY, 1 h 30 min antes; manda su gráfico.) 🌙 caja = vela de las **22:45** (15:45 NY) y **la misma lógica** (primera vela
-  que cierre fuera y mida el doble que la de la caja) **hasta las 05:00** de su gráfico (22:00 NY).
+  que cierre fuera y mida el doble que la de la caja) **hasta las 05:00** de su gráfico (22:00 NY);
+  el usuario respondió "igual, misma regla" (Claude lo entiende como misma ruptura, misma ventana).
   "El doble" se mide de máximo a mínimo de la vela (el usuario lo dejó a criterio de Claude). Entrada al cierre, **stop 0,2 %**, **TP fijo de
   70 puntos**; lote de referencia 0,5. Paso 1: comando **`!caja_test`** (solo comprobación, sin avisos
   de entrada) con velas M15 del **futuro NQ de Yahoo Finance** (gratis, casi 24 h; de USTEC no hay
@@ -389,11 +392,13 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 +0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
 
 Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días, hora NY, solo velas
-cerradas) → `caja_simular()` (cajas 📦 08:00 NY hasta la vela de las 09:45 NY y 🌙 15:45 NY
+cerradas) → `caja_simular()` (cajas 📦 08:00 NY con las velas de las 09:30 y 09:45 NY y 🌙 15:45 NY
 hasta las 22:00 NY, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja; salida con
 `_caja_salida`: SL 0,2 % / TP 70 pts / si toca los dos, SL / cierre forzado a las 16:00 NY o a las
 08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
-(misma dirección o no; la noche cuenta el día de trading siguiente a la caja).
+(misma dirección o no; la noche cuenta el día de trading siguiente a la caja) y lista también los
+días que el usuario operó sin señal del bot. Primer `!caja_test` en vivo el 15/11: Yahoo responde desde
+Northflank y la caja del 13/11 cuadra con su gráfico (42 pts frente a ~40; precios del NQ ~85 pts por encima).
 
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
 5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.

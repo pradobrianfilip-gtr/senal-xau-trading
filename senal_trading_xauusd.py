@@ -2331,9 +2331,11 @@ def generar_reporte_ustec():
 # 24 h; de USTEC no hay datos gratis). Simula los ultimos ~60 dias y lo compara
 # con sus operaciones reales (operaciones_ustec.csv). NO manda avisos de entrada.
 # Reglas (hora de su grafico = Nueva York + 7 h; aqui todo va en hora NY):
-#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); entra con la
-#      primera de las velas siguientes, hasta la de las 16:45 (09:45 NY), que
-#      cierre fuera y mida (maximo - minimo) >= 2x la vela de la caja.
+#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); confirman solo
+#      la vela de las 16:30 (09:30 NY, apertura) o, si no, la de las 16:45: tiene
+#      que cerrar fuera y medir (maximo - minimo) >= 2x la vela de la caja. Las
+#      de 15:15 a 16:15 solo se observan (el 13/11 la de las 15:30 dio una compra
+#      falsa y la buena fue la venta de las 16:30).
 #   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con las velas hasta las
 #      05:00 de su grafico (22:00 NY).
 #   Entrada al cierre de esa vela, stop 0,2 %, TP 70 puntos; si una vela toca
@@ -2406,7 +2408,7 @@ def caja_simular(velas):
             cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
             continue
         if ((caja := cajas.get("apertura")) and not caja["usada"] and caja["fecha"] == t.date()
-                and 8 * 60 < minuto <= 9 * 60 + 45):
+                and 9 * 60 + 30 <= minuto <= 9 * 60 + 45):
             estrategia = "apertura"
             limite = t.replace(hour=16, minute=0)
         elif ((caja := cajas.get("noche")) and not caja["usada"] and caja["fecha"] == t.date()
@@ -2444,6 +2446,12 @@ def _fecha_registro(op):
     while dia.weekday() >= 5:
         dia += timedelta(days=1)
     return dia.isoformat()
+
+
+def _orden_fecha(linea):
+    """Ordena las lineas del detalle por su fecha (MmmDD/AA tras el icono)."""
+    m = re.search(r"\*\*(\w{3})(\d{2})/(\d{2})\*\*", linea)
+    return (m.group(3), MESES_CORTOS.index(m.group(1)), m.group(2)) if m else ("", 0, "")
 
 
 def _miles(x):
@@ -2510,6 +2518,11 @@ def generar_reporte_caja():
         lineas.append(f"{iconos[op['estrategia']]} **{_fecha_corta(fecha)}** {lado} a las {hora} "
                       f"(caja {_miles(op['caja_l'])}–{_miles(op['caja_h'])}) → {resultado} · {tu_txt}")
     sin_senal = sorted(k for k in tuyas if k not in comparadas and k[0] >= _fecha_grafico(velas[0]["t"]))
+    for fecha, estrategia in sin_senal:
+        tuya = tuyas[(fecha, estrategia)]
+        lineas.append(f"{iconos.get(estrategia, estrategia)} **{_fecha_corta(fecha)}** ➖ sin señal del bot · "
+                      f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])}")
+    lineas.sort(key=lambda x: (_orden_fecha(x), x))
 
     resumen = []
     for estrategia in ("apertura", "noche"):

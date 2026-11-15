@@ -47,7 +47,7 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   "esta noche no hay entrada" a la 01:15. Sustituye la ventana "primera ruptura hasta las 05:00" del
   2026-11-15 — decisión del usuario.
 - 2026-11-16 — **Aviso "📏 caja marcada"** al empezar a vigilar cada caja (📦 a las 15:15 de su gráfico;
-  🌙 al abrir su ventana): cuánto mide la vela de la caja y cuánto tiene que medir la ruptura (el doble).
+  🌙 a las 23:00 de su gráfico): cuánto mide la vela de la caja y cuánto tiene que medir la ruptura (el doble).
   Motivo: la primera noche (domingo) no llegó nada y el usuario pensó que el bot no había empezado —
   decisión de Claude a petición del usuario ("dale iniciar para ver el día de hoy").
 - 2026-11-15 — **Avisos en vivo también de la caja 🌙** (`CAJA_AVISOS_NOCHE_ACTIVO = True`, pedido del

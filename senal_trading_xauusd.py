@@ -2336,8 +2336,9 @@ def generar_reporte_ustec():
 #      tiene que cerrar fuera y medir (maximo - minimo) >= 2x la vela de la caja.
 #      Las de 15:15 a 16:15 solo se observan (el 13/11 la de las 15:30 dio una
 #      compra falsa y la buena fue la venta de las 16:30).
-#   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con las velas hasta las
-#      05:00 de su grafico (22:00 NY).
+#   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con la vela de la 01:00 de
+#      su grafico (18:00 NY, reapertura tras la pausa), que se ve a la 01:15; la
+#      caja del viernes, con la reapertura del domingo.
 #   Entrada al cierre de esa vela, TP 70 puntos y tres stops para comparar: 0,2 %,
 #   el otro lado de la caja y el extremo de la vela de confirmacion. Si una vela
 #   M15 toca stop y TP, se mira dentro con las velas M5; si no se sabe, stop.
@@ -2411,11 +2412,12 @@ def _caja_salida(velas, i, d, limite, sl, m5=None):
     return None  # sigue abierta (datos hasta ahora)
 
 
-def _caja_noche_hasta(t_caja):
-    """Fin de la ventana de la caja 🌙 (vela de las 15:45 NY): las 22:00 NY de ese dia
-    (05:00 de su grafico); la del viernes vale hasta las 22:00 NY del domingo."""
-    hasta = t_caja.replace(hour=22, minute=0)
-    return hasta + timedelta(days=2) if t_caja.weekday() == 4 else hasta
+def _caja_noche_vela(t_caja):
+    """Inicio de la vela que confirma la caja 🌙 (vela de las 15:45 NY): la de la
+    reapertura, 18:00 NY = 01:00 de su grafico (aviso a la 01:15); la caja del viernes
+    se confirma con la reapertura del domingo."""
+    vela = t_caja.replace(hour=18, minute=0)
+    return vela + timedelta(days=2) if t_caja.weekday() == 4 else vela
 
 
 def caja_simular(velas, m5=None):
@@ -2430,13 +2432,13 @@ def caja_simular(velas, m5=None):
             continue
         if minuto == 15 * 60 + 45:
             cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False,
-                              "hasta": _caja_noche_hasta(t)}
+                              "vela": _caja_noche_vela(t)}
             continue
         if ((caja := cajas.get("apertura")) and not caja["usada"] and caja["fecha"] == t.date()
                 and minuto == 9 * 60 + 30):
             estrategia = "apertura"
             limite = t.replace(hour=16, minute=0)
-        elif (caja := cajas.get("noche")) and not caja["usada"] and t < caja["hasta"]:
+        elif (caja := cajas.get("noche")) and not caja["usada"] and t == caja["vela"]:
             estrategia = "noche"
             limite = (t + timedelta(days=1)).replace(hour=8, minute=0)
         else:
@@ -2613,9 +2615,9 @@ def generar_reporte_caja():
 # USTEC, por eso los niveles van en puntos desde su entrada.
 #   📦 un solo aviso a las 16:45 de su grafico (vela de las 16:30); cierre
 #      forzado a las 23:00 de su grafico (16:00 NY).
-#   🌙 caja de las 22:45 (15:45 NY) y aviso con la primera vela que la rompa
-#      hasta las 05:00 de su grafico (22:00 NY); la del viernes vale para la
-#      reapertura del domingo. Cierre forzado a las 15:00 de su grafico (08:00 NY).
+#   🌙 caja de las 22:45 (15:45 NY) y un solo aviso a la 01:15 de su grafico con
+#      la vela de la 01:00 (18:00 NY, reapertura); la del viernes, con la del
+#      domingo. Cierre forzado a las 15:00 de su grafico (08:00 NY).
 # ---------------------------------------------------------------------------
 
 CAJA_AVISOS_ACTIVO = True
@@ -2759,19 +2761,20 @@ def revisar_caja_apertura(ahora=None):
 
 
 def revisar_caja_noche(ahora=None):
-    """Avisos de la caja 🌙: primera vela que rompe la caja de las 22:45 hasta las 05:00
-    de su grafico, y resultado (cierre forzado a las 15:00 de su grafico)."""
+    """Avisos de la caja 🌙: caja de las 22:45 y un solo aviso a la 01:15 de su grafico
+    con la vela de la 01:00; luego el resultado (cierre forzado a las 15:00 de su grafico)."""
     ahora = ahora or datetime.now(NUEVA_YORK_TZ)
     if not CAJA_AVISOS_NOCHE_ACTIVO or ahora.weekday() == 5:
         return
     minuto = ahora.hour * 60 + ahora.minute
     estado = _caja_noche
-    if estado["op"] is None:
-        # Sin operacion: solo hace falta mirar justo tras el cierre de cada vela de la ventana.
-        en_ventana = (16 * 60 <= minuto <= 22 * 60 + 10) and (ahora.weekday() < 5 or minuto >= 18 * 60)
-        if not en_ventana or minuto % 15 > 4:
+    if estado["op"] is None or "fin" in estado["enviados"]:
+        # Sin operacion abierta: solo al cerrar la caja (16:00 NY) y la vela de la 01:00 (18:15 NY).
+        caja_lista = ahora.weekday() < 5 and 16 * 60 <= minuto <= 16 * 60 + 10
+        decision = ahora.weekday() != 4 and 18 * 60 + 15 <= minuto <= 18 * 60 + 35
+        if not (caja_lista or decision):
             return
-    elif "fin" in estado["enviados"] or minuto % 5:
+    elif minuto % 5:
         return
     try:
         velas = _velas_nq_yahoo(rango="5d")
@@ -2784,28 +2787,30 @@ def revisar_caja_noche(ahora=None):
     caja_v = cajas[-1]
     if estado["caja_t"] != caja_v["t"]:
         estado.update(caja_t=caja_v["t"], enviados=set(), op=None)
+    if "fin" in estado["enviados"]:
+        return
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
-    hasta = _caja_noche_hasta(caja_v["t"])
+    t_vela = _caja_noche_vela(caja_v["t"])
     noche = _fecha_registro({"estrategia": "noche", "t": caja_v["t"]})
     noche = datetime.strptime(noche, "%Y-%m-%d")
     cabecera = f"Noche del {DIAS_SEMANA[noche.weekday()].lower()} {noche.strftime('%d/%m')}"
     if caja_v["t"].weekday() == 4:
         cabecera += " (caja del viernes)"
-    if ahora < hasta:
+    if ahora < t_vela + timedelta(minutes=15):
         _caja_aviso_caja(estado, ahora, "🌙", cabecera, "22:45", caja["h"] - caja["l"],
-                         "Miro cada vela hasta las **05:00** de tu gráfico y aviso si una la rompe")
+                         "Miro la vela de la **01:00** (reapertura): aviso a la **01:15** de tu gráfico")
     if estado["op"] is None:
-        for v in velas:
-            if caja_v["t"] < v["t"] < hasta and (d := _caja_ruptura(v, caja)):
-                estado["op"] = {"dir": d, "vela": v}
-                break
-        else:
-            if ahora >= hasta:
-                _caja_avisar(estado, "fin", hasta, ahora, "🌙➖ USTEC -- esta noche no hubo ruptura",
-                             f"**{cabecera}** · caja de las 22:45: {caja['h'] - caja['l']:.0f} pts\n"
-                             f"Hasta las 05:00 de tu gráfico ninguna vela rompió la caja con el doble de "
-                             f"tamaño. **Esta noche no se opera.**", color=0x95A5A6)
+        v1 = next((v for v in velas if v["t"] == t_vela), None)
+        if v1 is None:
             return
+        d = _caja_ruptura(v1, caja)
+        if not d:
+            _caja_avisar(estado, "fin", _caja_fin(v1), ahora, "🌙➖ USTEC -- esta noche no hay entrada",
+                         f"**{cabecera}** · caja de las 22:45: {caja['h'] - caja['l']:.0f} pts\n"
+                         f"La vela de la 01:00 ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble "
+                         f"de tamaño. **Esta noche no se opera.**", color=0x95A5A6)
+            return
+        estado["op"] = {"dir": d, "vela": v1}
     op = estado["op"]
     _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"])
     limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)

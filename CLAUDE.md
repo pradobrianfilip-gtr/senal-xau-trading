@@ -40,6 +40,10 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-16 — **Aviso "📏 caja marcada"** al empezar a vigilar cada caja (📦 a las 15:15 de su gráfico;
+  🌙 al abrir su ventana): cuánto mide la vela de la caja y cuánto tiene que medir la ruptura (el doble).
+  Motivo: la primera noche (domingo) no llegó nada y el usuario pensó que el bot no había empezado —
+  decisión de Claude a petición del usuario ("dale iniciar para ver el día de hoy").
 - 2026-11-15 — **Avisos en vivo también de la caja 🌙** (`CAJA_AVISOS_NOCHE_ACTIVO = True`, pedido del
   usuario "desde hoy"): caja de las 22:45 de su gráfico y aviso con la primera vela que la rompa con el
   doble de tamaño hasta las 05:00 (mismo formato que la 📦; "Noche del lunes 16/11"); la caja del
@@ -484,6 +488,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-16 — Aviso "📏 caja marcada" al empezar a vigilar cada caja.
 - 2026-11-15 — Avisos en vivo de la caja 🌙 (22:45 → ruptura hasta las 05:00; la del viernes, en la reapertura del domingo).
 - 2026-11-15 — Avisos en vivo de la caja 📦 de USTEC (un aviso a las 16:45: confirmación y doble de la vela de las 16:30, BUY/SELL, TP 70 pts).
 - 2026-11-15 — Comando `!caja_test`: la regla de la caja de USTEC simulada con el futuro NQ (Yahoo) y comparada con las operaciones del usuario.

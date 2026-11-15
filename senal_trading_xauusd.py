@@ -2331,9 +2331,9 @@ def generar_reporte_ustec():
 # 24 h; de USTEC no hay datos gratis). Simula los ultimos ~60 dias y lo compara
 # con sus operaciones reales (operaciones_ustec.csv). NO manda avisos de entrada.
 # Reglas (hora de su grafico = Nueva York + 7 h; aqui todo va en hora NY):
-#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); entra si la vela
-#      de las 16:30 (09:30 NY) cierra fuera con cuerpo >= 2x la media de las 20
-#      velas anteriores.
+#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); entra con la
+#      primera de las velas siguientes, hasta la de las 16:45 (09:45 NY), que
+#      cierre fuera y mida (maximo - minimo) >= 2x la vela de la caja.
 #   🌙 caja = vela de las 22:45 (15:45 NY); entra con la primera vela que cumpla
 #      lo mismo hasta las 05:00 de su grafico (22:00 NY).
 #   Entrada al cierre de esa vela, stop 0,2 %, TP 70 puntos; si una vela toca
@@ -2380,6 +2380,13 @@ def _caja_ruptura(velas, i, caja):
     return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
 
 
+def _caja_ruptura_apertura(v, caja):
+    """+1 / -1 si la vela cierra fuera de la caja y mide >= 2x la vela de la caja; 0 si no."""
+    if v["h"] - v["l"] < CAJA_CUERPO_MULT * (caja["h"] - caja["l"]):
+        return 0
+    return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
+
+
 def _caja_salida(velas, i, d, limite):
     """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo)."""
     entrada = velas[i]["c"]
@@ -2405,13 +2412,14 @@ def caja_simular(velas):
         t = v["t"]
         minuto = t.hour * 60 + t.minute
         if minuto == 8 * 60:
-            cajas["apertura"] = {"fecha": t.date(), "h": v["h"], "l": v["l"]}
+            cajas["apertura"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
             continue
         if minuto == 15 * 60 + 45:
             cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
             continue
-        if minuto == 9 * 60 + 30 and cajas.get("apertura", {}).get("fecha") == t.date():
-            estrategia, caja = "apertura", cajas.pop("apertura")
+        if ((caja := cajas.get("apertura")) and not caja["usada"] and caja["fecha"] == t.date()
+                and 8 * 60 < minuto <= 9 * 60 + 45):
+            estrategia = "apertura"
             limite = t.replace(hour=16, minute=0)
         elif ((caja := cajas.get("noche")) and not caja["usada"] and caja["fecha"] == t.date()
               and 16 * 60 <= minuto < 22 * 60):
@@ -2419,11 +2427,10 @@ def caja_simular(velas):
             limite = (t + timedelta(days=1)).replace(hour=8, minute=0)
         else:
             continue
-        d = _caja_ruptura(velas, i, caja)
+        d = _caja_ruptura_apertura(v, caja) if estrategia == "apertura" else _caja_ruptura(velas, i, caja)
         if not d:
             continue
-        if estrategia == "noche":
-            caja["usada"] = True
+        caja["usada"] = True
         salida = _caja_salida(velas, i, d, limite)
         op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"],
               "caja_h": caja["h"], "caja_l": caja["l"]}

@@ -2324,6 +2324,228 @@ def generar_reporte_ustec():
     embed.set_footer(text=f"Registro: {fuente} · Hora Madrid: {hora_madrid()}")
     return embed
 
+
+# ---------------------------------------------------------------------------
+# !caja_test (2026-11-15): comprobacion de la regla de la caja del usuario
+# (📦 apertura y 🌙 noche) con velas M15 del futuro NQ de Yahoo Finance (casi
+# 24 h; de USTEC no hay datos gratis). Simula los ultimos ~60 dias y lo compara
+# con sus operaciones reales (operaciones_ustec.csv). NO manda avisos de entrada.
+# Reglas (hora de su grafico = Nueva York + 7 h; aqui todo va en hora NY):
+#   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); entra si la vela
+#      de las 16:30 (09:30 NY) cierra fuera con cuerpo >= 2x la media de las 20
+#      velas anteriores.
+#   🌙 caja = vela de las 22:45 (15:45 NY); entra con la primera vela que cumpla
+#      lo mismo hasta las 05:00 de su grafico (22:00 NY).
+#   Entrada al cierre de esa vela, stop 0,2 %, TP 70 puntos; si una vela toca
+#   los dos, cuenta como stop. Sin tocar ninguno: cierre a las 16:00 NY (📦) o
+#   a las 08:00 NY del dia siguiente (🌙, antes de la caja nueva).
+# ---------------------------------------------------------------------------
+
+URL_YAHOO_NQ = "https://query1.finance.yahoo.com/v8/finance/chart/NQ=F"
+CAJA_TP_PUNTOS = 70
+CAJA_SL_PCT = 0.2
+CAJA_CUERPO_MULT = 2.0
+CAJA_VELAS_MEDIA = 20
+CAJA_LOTE = 0.5
+CAJA_EUR_PUNTO_LOTE = 0.89  # USTEC en la cuenta del usuario: ~0,89 € por punto y lote
+CAJA_HORAS_GRAFICO_SOBRE_NY = 7
+
+
+def _velas_nq_yahoo(rango="60d"):
+    """Velas M15 cerradas del futuro NQ (t = inicio de la vela en hora NY)."""
+    r = requests.get(URL_YAHOO_NQ, params={"interval": "15m", "range": rango},
+                     headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+    r.raise_for_status()
+    res = r.json()["chart"]["result"][0]
+    q = res["indicators"]["quote"][0]
+    ahora = datetime.now(NUEVA_YORK_TZ)
+    velas = []
+    for i, ts in enumerate(res.get("timestamp") or []):
+        o, h, l, c = (q[k][i] for k in ("open", "high", "low", "close"))
+        t = datetime.fromtimestamp(ts, NUEVA_YORK_TZ)
+        if None in (o, h, l, c) or t + timedelta(minutes=15) > ahora:
+            continue
+        velas.append({"t": t, "o": o, "h": h, "l": l, "c": c})
+    return velas
+
+
+def _caja_ruptura(velas, i, caja):
+    """+1 / -1 si la vela i cierra fuera de la caja con cuerpo grande; 0 si no."""
+    if i < CAJA_VELAS_MEDIA:
+        return 0
+    v = velas[i]
+    media = sum(abs(x["c"] - x["o"]) for x in velas[i - CAJA_VELAS_MEDIA:i]) / CAJA_VELAS_MEDIA
+    if media <= 0 or abs(v["c"] - v["o"]) < CAJA_CUERPO_MULT * media:
+        return 0
+    return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
+
+
+def _caja_salida(velas, i, d, limite):
+    """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo)."""
+    entrada = velas[i]["c"]
+    sl = entrada * (1 - d * CAJA_SL_PCT / 100)
+    tp = entrada + d * CAJA_TP_PUNTOS
+    for j in range(i + 1, len(velas)):
+        v = velas[j]
+        if v["t"] >= limite:  # hueco (pausa o fin de semana): sale a la apertura
+            return j, v["o"], "CIERRE"
+        if (v["l"] <= sl) if d > 0 else (v["h"] >= sl):
+            return j, sl, "SL"
+        if (v["h"] >= tp) if d > 0 else (v["l"] <= tp):
+            return j, tp, "TP"
+        if v["t"] + timedelta(minutes=15) >= limite:
+            return j, v["c"], "CIERRE"
+    return None  # sigue abierta (datos hasta ahora)
+
+
+def caja_simular(velas):
+    """Operaciones de la regla de la caja sobre velas M15 cerradas en hora NY."""
+    ops, cajas = [], {}
+    for i, v in enumerate(velas):
+        t = v["t"]
+        minuto = t.hour * 60 + t.minute
+        if minuto == 8 * 60:
+            cajas["apertura"] = {"fecha": t.date(), "h": v["h"], "l": v["l"]}
+            continue
+        if minuto == 15 * 60 + 45:
+            cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
+            continue
+        if minuto == 9 * 60 + 30 and cajas.get("apertura", {}).get("fecha") == t.date():
+            estrategia, caja = "apertura", cajas.pop("apertura")
+            limite = t.replace(hour=16, minute=0)
+        elif ((caja := cajas.get("noche")) and not caja["usada"] and caja["fecha"] == t.date()
+              and 16 * 60 <= minuto < 22 * 60):
+            estrategia = "noche"
+            limite = (t + timedelta(days=1)).replace(hour=8, minute=0)
+        else:
+            continue
+        d = _caja_ruptura(velas, i, caja)
+        if not d:
+            continue
+        if estrategia == "noche":
+            caja["usada"] = True
+        salida = _caja_salida(velas, i, d, limite)
+        op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"],
+              "caja_h": caja["h"], "caja_l": caja["l"]}
+        if salida:
+            j, precio, motivo = salida
+            op.update(salida=precio, motivo=motivo, t_salida=velas[j]["t"],
+                      puntos=(precio - v["c"]) * d)
+        ops.append(op)
+    return ops
+
+
+def _fecha_grafico(t):
+    """Fecha en la hora del grafico del usuario (NY + 7 h)."""
+    return (t + timedelta(hours=CAJA_HORAS_GRAFICO_SOBRE_NY)).date().isoformat()
+
+
+def _fecha_registro(op):
+    """Fecha con la que el usuario apunta la operacion: la apertura, su dia; la noche,
+    el dia de trading siguiente a la caja (la del viernes cuenta el lunes)."""
+    if op["estrategia"] == "apertura":
+        return op["t"].date().isoformat()
+    dia = op["t"].date() + timedelta(days=1)
+    while dia.weekday() >= 5:
+        dia += timedelta(days=1)
+    return dia.isoformat()
+
+
+def _miles(x):
+    return f"{x:,.0f}".replace(",", ".")
+
+
+def _trozos(lineas, maximo=3900):
+    trozo, largo = [], 0
+    for linea in lineas:
+        if trozo and largo + len(linea) + 1 > maximo:
+            yield trozo
+            trozo, largo = [], 0
+        trozo.append(linea)
+        largo += len(linea) + 1
+    if trozo:
+        yield trozo
+
+
+def generar_reporte_caja():
+    """Embeds del comando !caja_test: la regla simulada contra las operaciones reales."""
+    try:
+        velas = _velas_nq_yahoo()
+    except Exception as e:
+        return [discord.Embed(title="📦🌙 Caja USTEC -- sin datos",
+                              description=f"No se pudieron descargar las velas del futuro NQ de Yahoo "
+                                          f"Finance: {_sin_secretos(e)}", color=0xE24B4A)]
+    if len(velas) < 200:
+        return [discord.Embed(title="📦🌙 Caja USTEC -- sin datos",
+                              description=f"Yahoo Finance solo devolvio {len(velas)} velas M15 del NQ.",
+                              color=0xE24B4A)]
+    ops = caja_simular(velas)
+    try:
+        filas, _ = _leer_operaciones_ustec()
+    except Exception:
+        filas = []
+    tuyas = {}
+    for fila in filas:
+        clave = ((fila.get("fecha") or "").strip(), (fila.get("estrategia") or "").strip())
+        d = tuyas.setdefault(clave, {"lados": set(), "eur": 0.0})
+        d["lados"].add((fila.get("lado") or "").strip())
+        d["eur"] += _num(fila.get("eur"), 0.0)
+
+    iconos = {"apertura": "📦", "noche": "🌙"}
+    lineas, cerradas, coinciden, contrarias, comparadas = [], [], 0, 0, set()
+    for op in ops:
+        lado = "COMPRA" if op["dir"] > 0 else "VENTA"
+        fecha = _fecha_registro(op)
+        if "puntos" not in op:
+            resultado = "abierta"
+        else:
+            cerradas.append(op)
+            emoji = {"TP": "✅", "SL": "❌"}.get(op["motivo"], "⏹️")
+            resultado = f"{emoji} {op['motivo']} {op['puntos']:+.0f} pts"
+        tuya = tuyas.get((fecha, op["estrategia"]))
+        if tuya:
+            comparadas.add((fecha, op["estrategia"]))
+            igual = ("compra" if op["dir"] > 0 else "venta") in tuya["lados"]
+            coinciden += igual
+            contrarias += not igual
+            tu_txt = f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])} {'✔' if igual else '✖'}"
+        else:
+            tu_txt = "tú: no operaste"
+        hora = (op["t"] + timedelta(minutes=15 + 60 * CAJA_HORAS_GRAFICO_SOBRE_NY)).strftime("%H:%M")
+        lineas.append(f"{iconos[op['estrategia']]} **{_fecha_corta(fecha)}** {lado} a las {hora} "
+                      f"(caja {_miles(op['caja_l'])}–{_miles(op['caja_h'])}) → {resultado} · {tu_txt}")
+    sin_senal = sorted(k for k in tuyas if k not in comparadas and k[0] >= _fecha_grafico(velas[0]["t"]))
+
+    resumen = []
+    for estrategia in ("apertura", "noche"):
+        grupo = [o for o in cerradas if o["estrategia"] == estrategia]
+        if not grupo:
+            resumen.append(f"{iconos[estrategia]} sin operaciones")
+            continue
+        g = sum(o["puntos"] > 0 for o in grupo)
+        pts = sum(o["puntos"] for o in grupo)
+        resumen.append(
+            f"{iconos[estrategia]} {len(grupo)} ops -- TP {sum(o['motivo'] == 'TP' for o in grupo)} · "
+            f"SL {sum(o['motivo'] == 'SL' for o in grupo)} · cierre {sum(o['motivo'] == 'CIERRE' for o in grupo)}"
+            f" · acierto {g / len(grupo) * 100:.0f} % · {pts:+.0f} pts ≈ "
+            f"{_eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)} con {str(CAJA_LOTE).replace('.', ',')} lotes")
+    resumen += [
+        "",
+        f"**Comparado con tus operaciones:** {coinciden} días en la misma dirección, {contrarias} en la "
+        f"contraria; {len(sin_senal)} días que operaste sin señal del bot"
+        + (f" ({', '.join(iconos.get(e, e) + _fecha_corta(f) for f, e in sin_senal)})" if sin_senal else "")
+        + ".",
+        f"_Datos: futuro NQ (Yahoo Finance) del {_fecha_corta(_fecha_grafico(velas[0]['t']))} al "
+        f"{_fecha_corta(_fecha_grafico(velas[-1]['t']))}. Sus puntos son casi los de USTEC, pero sin spread._",
+    ]
+    titulo = "📦🌙 Caja USTEC -- prueba de la regla (sin avisos)"
+    embeds = [discord.Embed(title=titulo, description="\n".join(resumen), color=COLOR_USTEC)]
+    for trozo in _trozos(lineas or ["Ninguna señal en el periodo."]):
+        embeds.append(discord.Embed(title=f"{titulo} -- detalle", description="\n".join(trozo),
+                                    color=COLOR_USTEC))
+    embeds[-1].set_footer(text=f"Hora Madrid: {hora_madrid()}")
+    return embeds
+
 # --- Cliente de Discord (bot de verdad, no un webhook) ---
 intents = discord.Intents.default()
 intents.message_content = True  # necesario para leer comandos de texto como !stats
@@ -3784,6 +4006,13 @@ async def on_message(message):
             await message.channel.send(embed=embed)
         except Exception as e:
             print(f"Error con !USTEC ({_sin_secretos(e)})")
+        return
+    if contenido in ("!caja_test", "!cajatest"):
+        try:
+            for embed in await asyncio.to_thread(generar_reporte_caja):
+                await message.channel.send(embed=embed)
+        except Exception as e:
+            print(f"Error con !caja_test ({_sin_secretos(e)})")
         return
     if contenido not in ("!stats", "!estadisticas", "!estadísticas"):
         return

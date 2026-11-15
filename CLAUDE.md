@@ -40,6 +40,14 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-15 — **Avisos en vivo de la caja 📦 de USTEC** (`CAJA_AVISOS_ACTIVO = True`, solo la apertura;
+  la noche 🌙 sigue solo en `!caja_test`), con el formato que pidió el usuario: día, caja, "✅
+  Confirmación: vela de las 16:30" (o de las 16:45 si la de las 16:30 no confirmó), "Entra en: BUY/SELL",
+  TP +70 pts y stop 0,2 % en puntos desde su entrada y en € con 0,5 lotes; a las 17:00 de su gráfico,
+  "doble confirmación" si la vela de las 16:45 también cierra fuera del mismo lado; luego ✅ TP / ❌ stop /
+  ⏹️ cierre a las 23:00 de su gráfico. Si no hay ruptura: "hoy no hay entrada". Datos: futuro NQ de Yahoo
+  (puede ir con unos minutos de retraso) — decisión del usuario.
+
 - 2026-11-15 — **Regla de la caja de USTEC, para pasarla al bot** (definida por el usuario con su
   gráfico del 13/11 y su explicación del 15/11): 📦 caja = **máximo y mínimo de la vela de las 15:00**
   de su gráfico (08:00 NY); **confirman solo la vela de las 16:30** (09:30 NY, apertura) **o, si no, la
@@ -403,6 +411,11 @@ Northflank y la caja del 13/11 cuadra con su gráfico (42 pts frente a ~40; prec
 Ese día la vela de las 16:45 subió ~88 pts por encima de la entrada antes de caer ~130: con el stop de 0,2 %
 (~56 pts) el resultado depende del orden dentro de la vela; por eso se añadieron las M5 y los otros dos stops.
 
+Avisos en vivo de la caja 📦: `revisar_caja_periodicamente` (cada minuto) → `revisar_caja_apertura()`,
+que solo pide velas al NQ de 09:45 a 10:20 NY y luego cada 5 min si hay operación; estado del día en
+memoria (`_caja_vivo`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
+(`CAJA_MAX_RETRASO_MIN`). Si una vela toca stop y TP, mira sus velas M5.
+
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
 5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.
 
@@ -465,6 +478,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-15 — Avisos en vivo de la caja 📦 de USTEC (confirmación 16:30 / doble confirmación 16:45, BUY/SELL, TP 70 pts).
 - 2026-11-15 — Comando `!caja_test`: la regla de la caja de USTEC simulada con el futuro NQ (Yahoo) y comparada con las operaciones del usuario.
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

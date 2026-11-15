@@ -2455,6 +2455,11 @@ def caja_simular(velas, m5=None):
     return ops
 
 
+def _caja_hora_grafico(t):
+    """Hora en el grafico del usuario (NY + 7 h)."""
+    return (t + timedelta(hours=CAJA_HORAS_GRAFICO_SOBRE_NY)).strftime("%H:%M")
+
+
 def _fecha_grafico(t):
     """Fecha en la hora del grafico del usuario (NY + 7 h)."""
     return (t + timedelta(hours=CAJA_HORAS_GRAFICO_SOBRE_NY)).date().isoformat()
@@ -2590,6 +2595,150 @@ def generar_reporte_caja():
                                     color=COLOR_USTEC))
     embeds[-1].set_footer(text=f"Hora Madrid: {hora_madrid()}")
     return embeds
+
+
+# ---------------------------------------------------------------------------
+# Avisos en vivo de la caja 📦 (2026-11-15): misma regla que !caja_test, con el
+# formato que pidio el usuario: dia, confirmacion con la vela de las 16:30,
+# doble confirmacion con la de las 16:45, entrada BUY/SELL y el calculo de los
+# 70 pts. Despues avisa si toca el TP o el stop (0,2 %) o, si no, al cierre de
+# Wall Street (16:00 NY = 23:00 en su grafico). Datos del futuro NQ (Yahoo): sus
+# precios no son los de su USTEC, por eso los niveles van en puntos desde su
+# entrada. Solo la apertura; la noche 🌙 sigue solo en !caja_test.
+# ---------------------------------------------------------------------------
+
+CAJA_AVISOS_ACTIVO = True
+CAJA_MAX_RETRASO_MIN = 20  # tras un reinicio no se avisa lo que paso hace mas
+DIAS_SEMANA = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+_caja_vivo = {"fecha": None, "enviados": set(), "op": None}
+
+
+def _caja_avisar(clave, cierre, ahora, titulo, texto, color=COLOR_USTEC):
+    """Manda un aviso una sola vez, y no si su vela cerro hace demasiado (tras un reinicio)."""
+    if clave in _caja_vivo["enviados"]:
+        return
+    _caja_vivo["enviados"].add(clave)
+    if ahora - cierre > timedelta(minutes=CAJA_MAX_RETRASO_MIN):
+        print(f"Caja USTEC: aviso '{clave}' de hace mas de {CAJA_MAX_RETRASO_MIN} min -- no se manda.")
+        return
+    enviar_discord(titulo, texto, color=color)
+
+
+def _caja_por_fuera(v, caja, d):
+    """La vela cierra fuera de la caja del lado d (sin mirar el tamano)."""
+    return v["c"] > caja["h"] if d > 0 else v["c"] < caja["l"]
+
+
+def revisar_caja_apertura(ahora=None):
+    """Avisos de la caja 📦 de hoy: entrada (16:30 o 16:45), doble confirmacion y resultado."""
+    ahora = ahora or datetime.now(NUEVA_YORK_TZ)
+    minuto = ahora.hour * 60 + ahora.minute
+    if not CAJA_AVISOS_ACTIVO or ahora.weekday() >= 5 or not 9 * 60 + 45 <= minuto <= 16 * 60 + 20:
+        return
+    estado = _caja_vivo
+    if estado["fecha"] != ahora.date():
+        estado.update(fecha=ahora.date(), enviados=set(), op=None)
+    if "fin" in estado["enviados"]:
+        return
+    # Tras la confirmacion (10:00 NY) solo hace falta seguir la operacion, cada 5 min.
+    if minuto > 10 * 60 + 20 and (estado["op"] is None or minuto % 5):
+        return
+    try:
+        velas = [v for v in _velas_nq_yahoo(rango="1d") if v["t"].date() == ahora.date()]
+    except Exception as e:
+        print(f"Caja USTEC: sin velas del NQ ({_sin_secretos(e)})")
+        return
+    por_minuto = {v["t"].hour * 60 + v["t"].minute: v for v in velas}
+    caja_v = por_minuto.get(8 * 60)
+    if caja_v is None:
+        return
+    caja = {"h": caja_v["h"], "l": caja_v["l"]}
+    rango = caja["h"] - caja["l"]
+    dia = f"{DIAS_SEMANA[ahora.weekday()]} {ahora.strftime('%d/%m')}"
+    v1, v2 = por_minuto.get(9 * 60 + 30), por_minuto.get(9 * 60 + 45)
+    fin = lambda v: v["t"] + timedelta(minutes=15)  # noqa: E731
+
+    if estado["op"] is None and v1 is not None:
+        d = _caja_ruptura(v1, caja)
+        if d:
+            estado["op"] = {"dir": d, "vela": v1, "hora": "16:30"}
+        elif v2 is None:
+            _caja_avisar("espera", fin(v1), ahora, "📦⏳ USTEC -- la vela de las 16:30 no confirma",
+                         f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
+                         f"➖ La vela de las 16:30 no rompió la caja con el doble de tamaño.\n"
+                         f"⏳ Espero a la de las **16:45** (aviso a las 17:00 de tu gráfico).")
+    if estado["op"] is None and v1 is not None and v2 is not None:
+        d = _caja_ruptura(v2, caja)
+        if d:
+            estado["op"] = {"dir": d, "vela": v2, "hora": "16:45"}
+        else:
+            _caja_avisar("fin", fin(v2), ahora, "📦➖ USTEC -- hoy no hay entrada",
+                         f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
+                         f"Ni la vela de las 16:30 ni la de las 16:45 rompieron la caja con el doble "
+                         f"de tamaño. **Hoy no se opera la apertura.**", color=0x95A5A6)
+            return
+    op = estado["op"]
+    if op is None:
+        return
+
+    d, lado = op["dir"], ("BUY" if op["dir"] > 0 else "SELL")
+    entrada = op["vela"]["c"]
+    sl_pts = entrada * CAJA_SL_PCT / 100
+    eur = lambda pts: _eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)  # noqa: E731
+    if op["hora"] == "16:30":
+        confirma = "✅ **Confirmación:** vela de las **16:30**\n⏳ Doble confirmación: vela de las 16:45 (aviso a las 17:00)"
+    else:
+        confirma = "➖ Vela de las 16:30: no confirmó\n✅ **Confirmación:** vela de las **16:45**"
+    _caja_avisar("entrada", fin(op["vela"]), ahora, f"📦{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
+                 f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n{confirma}\n\n"
+                 f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(fin(op['vela']))} de tu gráfico)\n"
+                 f"🎯 TP: **{'+' if d > 0 else '-'}{CAJA_TP_PUNTOS} pts** desde tu entrada "
+                 f"(≈ {eur(CAJA_TP_PUNTOS)} con {str(CAJA_LOTE).replace('.', ',')} lotes)\n"
+                 f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {eur(-sl_pts)})",
+                 color=0x2ECC71 if d > 0 else 0xE74C3C)
+    if op["hora"] == "16:30" and v2 is not None:
+        if _caja_por_fuera(v2, caja, d):
+            texto, titulo = (f"La vela de las 16:45 también cerró {'por encima' if d > 0 else 'por debajo'} "
+                             f"de la caja: **{lado} confirmado dos veces.**"), "✅ doble confirmación"
+        else:
+            texto, titulo = ("La vela de las 16:45 volvió dentro de la caja: **sin doble confirmación**. "
+                             "Vigila el stop."), "⚠️ sin doble confirmación"
+        _caja_avisar("doble", fin(v2), ahora, f"📦 USTEC -- {lado}: {titulo}", texto)
+
+    sl = entrada * (1 - d * CAJA_SL_PCT / 100)
+    tp = entrada + d * CAJA_TP_PUNTOS
+    for v in velas:
+        if v["t"] <= op["vela"]["t"]:
+            continue
+        toca_sl, toca_tp = _caja_toca(v, d, sl, tp)
+        if toca_sl and toca_tp:  # los dos en la misma vela: mira sus velas M5; si no se sabe, stop
+            try:
+                subs = [x for x in _velas_nq_yahoo(rango="1d", minutos=5) if v["t"] <= x["t"] < fin(v)]
+            except Exception:
+                subs = []
+            for sub in subs:
+                sub_sl, sub_tp = _caja_toca(sub, d, sl, tp)
+                if sub_sl or sub_tp:
+                    toca_sl = sub_sl
+                    break
+        if toca_sl:
+            _caja_avisar("fin", fin(v), ahora, f"📦❌ USTEC -- {lado}: stop tocado",
+                         f"La {lado} de las {_caja_hora_grafico(fin(op['vela']))} tocó el stop: "
+                         f"**-{sl_pts:.0f} pts** (≈ {eur(-sl_pts)}).", color=0xE74C3C)
+            return
+        if toca_tp:
+            _caja_avisar("fin", fin(v), ahora, f"📦✅ USTEC -- {lado}: TP +{CAJA_TP_PUNTOS} pts",
+                         f"La {lado} de las {_caja_hora_grafico(fin(op['vela']))} llegó al objetivo: "
+                         f"**+{CAJA_TP_PUNTOS} pts** (≈ {eur(CAJA_TP_PUNTOS)}). Cierra si no tenías el TP puesto.",
+                         color=0x2ECC71)
+            return
+        if fin(v).hour * 60 + fin(v).minute >= 16 * 60:
+            pts = (v["c"] - entrada) * d
+            _caja_avisar("fin", fin(v), ahora, f"📦⏹️ USTEC -- {lado}: cierra (fin de la sesión)",
+                         f"Wall Street cierra (23:00 de tu gráfico) sin tocar TP ni stop: cierra la {lado}. "
+                         f"Resultado ≈ **{pts:+.0f} pts** ({eur(pts)}).")
+            return
+
 
 # --- Cliente de Discord (bot de verdad, no un webhook) ---
 intents = discord.Intents.default()
@@ -3970,6 +4119,16 @@ async def revisar_nasdaq_periodicamente():
 # [V3 -- agregado] Tareas periodicas de correlacion via Alpaca. Cada una ya
 # se auto-desactiva por dentro si ALPACA_API_KEY/ALPACA_SECRET_KEY no estan
 # configuradas (no rompen nada si no se usan).
+@tasks.loop(minutes=1)
+async def revisar_caja_periodicamente():
+    # Caja 📦 de USTEC: cada minuto de 09:45 a 10:20 NY (16:45-17:20 en su grafico)
+    # y luego cada 5 min mientras haya operacion; fuera de eso no pide nada.
+    try:
+        await asyncio.to_thread(revisar_caja_apertura)
+    except Exception as e:
+        print(f"Caja USTEC: error inesperado ({_sin_secretos(e)})")
+
+
 @tasks.loop(minutes=30)
 async def revisar_dolar_periodicamente():
     await asyncio.to_thread(revisar_dolar_maximo_semanal)
@@ -4029,6 +4188,8 @@ async def on_ready():
         revisar_nasdaq_periodicamente.start()
     if RESPALDO_DISCORD_ACTIVO and not respaldo_periodicamente.is_running():
         respaldo_periodicamente.start()
+    if CAJA_AVISOS_ACTIVO and not revisar_caja_periodicamente.is_running():
+        revisar_caja_periodicamente.start()
 
     # [V3 -- agregado] Arranca las tareas de correlacion junto a la principal.
     for tarea_v3 in (revisar_dolar_periodicamente, revisar_estado_oro_periodicamente,

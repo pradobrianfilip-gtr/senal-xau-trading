@@ -2334,8 +2334,8 @@ def generar_reporte_ustec():
 #   📦 caja = maximo/minimo de la vela de las 15:00 (08:00 NY); entra con la
 #      primera de las velas siguientes, hasta la de las 16:45 (09:45 NY), que
 #      cierre fuera y mida (maximo - minimo) >= 2x la vela de la caja.
-#   🌙 caja = vela de las 22:45 (15:45 NY); entra con la primera vela que cumpla
-#      lo mismo hasta las 05:00 de su grafico (22:00 NY).
+#   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con las velas hasta las
+#      05:00 de su grafico (22:00 NY).
 #   Entrada al cierre de esa vela, stop 0,2 %, TP 70 puntos; si una vela toca
 #   los dos, cuenta como stop. Sin tocar ninguno: cierre a las 16:00 NY (📦) o
 #   a las 08:00 NY del dia siguiente (🌙, antes de la caja nueva).
@@ -2345,7 +2345,6 @@ URL_YAHOO_NQ = "https://query1.finance.yahoo.com/v8/finance/chart/NQ=F"
 CAJA_TP_PUNTOS = 70
 CAJA_SL_PCT = 0.2
 CAJA_CUERPO_MULT = 2.0
-CAJA_VELAS_MEDIA = 20
 CAJA_LOTE = 0.5
 CAJA_EUR_PUNTO_LOTE = 0.89  # USTEC en la cuenta del usuario: ~0,89 € por punto y lote
 CAJA_HORAS_GRAFICO_SOBRE_NY = 7
@@ -2369,18 +2368,7 @@ def _velas_nq_yahoo(rango="60d"):
     return velas
 
 
-def _caja_ruptura(velas, i, caja):
-    """+1 / -1 si la vela i cierra fuera de la caja con cuerpo grande; 0 si no."""
-    if i < CAJA_VELAS_MEDIA:
-        return 0
-    v = velas[i]
-    media = sum(abs(x["c"] - x["o"]) for x in velas[i - CAJA_VELAS_MEDIA:i]) / CAJA_VELAS_MEDIA
-    if media <= 0 or abs(v["c"] - v["o"]) < CAJA_CUERPO_MULT * media:
-        return 0
-    return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
-
-
-def _caja_ruptura_apertura(v, caja):
+def _caja_ruptura(v, caja):
     """+1 / -1 si la vela cierra fuera de la caja y mide >= 2x la vela de la caja; 0 si no."""
     if v["h"] - v["l"] < CAJA_CUERPO_MULT * (caja["h"] - caja["l"]):
         return 0
@@ -2427,7 +2415,7 @@ def caja_simular(velas):
             limite = (t + timedelta(days=1)).replace(hour=8, minute=0)
         else:
             continue
-        d = _caja_ruptura_apertura(v, caja) if estrategia == "apertura" else _caja_ruptura(velas, i, caja)
+        d = _caja_ruptura(v, caja)
         if not d:
             continue
         caja["usada"] = True

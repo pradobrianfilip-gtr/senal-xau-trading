@@ -46,8 +46,9 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   (09:45 NY, "máxima confirmación"), que **cierre fuera** de la caja y **mida el doble que la vela de
   las 15:00** (máximo − mínimo) marca el sentido; objetivo del usuario: **mínimo 30 € por operación**
   (70 pts ≈ 31 € con 0,5 lotes). (Él dice que las 15:00 es "30 min antes de abrir NY", pero en su
-  gráfico la vela de las 15:00 son las 08:00 NY, 1 h 30 min antes; manda su gráfico.) 🌙 caja = vela de las **22:45** (15:45 NY) y la primera vela que cumpla lo
-  mismo **hasta las 05:00** de su gráfico (22:00 NY). Entrada al cierre, **stop 0,2 %**, **TP fijo de
+  gráfico la vela de las 15:00 son las 08:00 NY, 1 h 30 min antes; manda su gráfico.) 🌙 caja = vela de las **22:45** (15:45 NY) y **la misma lógica** (primera vela
+  que cierre fuera y mida el doble que la de la caja) **hasta las 05:00** de su gráfico (22:00 NY).
+  "El doble" se mide de máximo a mínimo de la vela (el usuario lo dejó a criterio de Claude). Entrada al cierre, **stop 0,2 %**, **TP fijo de
   70 puntos**; lote de referencia 0,5. Paso 1: comando **`!caja_test`** (solo comprobación, sin avisos
   de entrada) con velas M15 del **futuro NQ de Yahoo Finance** (gratis, casi 24 h; de USTEC no hay
   datos gratis); si la regla y los datos encajan con sus operaciones, paso 2: avisos en vivo —
@@ -388,8 +389,8 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 +0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
 
 Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días, hora NY, solo velas
-cerradas) → `caja_simular()` (cajas 📦 08:00 NY con `_caja_ruptura_apertura` hasta la vela de las 09:45 NY
-y 🌙 15:45 NY con `_caja_ruptura`, salida con
+cerradas) → `caja_simular()` (cajas 📦 08:00 NY hasta la vela de las 09:45 NY y 🌙 15:45 NY
+hasta las 22:00 NY, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja; salida con
 `_caja_salida`: SL 0,2 % / TP 70 pts / si toca los dos, SL / cierre forzado a las 16:00 NY o a las
 08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
 (misma dirección o no; la noche cuenta el día de trading siguiente a la caja).

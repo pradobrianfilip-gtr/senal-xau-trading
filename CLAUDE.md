@@ -40,6 +40,20 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-15 — **Regla de la caja de USTEC, para pasarla al bot** (definida por el usuario con su
+  gráfico del 13/11 y su explicación del 15/11): 📦 caja = **máximo y mínimo de la vela de las 15:00**
+  de su gráfico (08:00 NY); se miran las 7 velas siguientes y la **primera, hasta la de las 16:45**
+  (09:45 NY, "máxima confirmación"), que **cierre fuera** de la caja y **mida el doble que la vela de
+  las 15:00** (máximo − mínimo) marca el sentido; objetivo del usuario: **mínimo 30 € por operación**
+  (70 pts ≈ 31 € con 0,5 lotes). (Él dice que las 15:00 es "30 min antes de abrir NY", pero en su
+  gráfico la vela de las 15:00 son las 08:00 NY, 1 h 30 min antes; manda su gráfico.) 🌙 caja = vela de las **22:45** (15:45 NY) y **la misma lógica** (primera vela
+  que cierre fuera y mida el doble que la de la caja) **hasta las 05:00** de su gráfico (22:00 NY).
+  "El doble" se mide de máximo a mínimo de la vela (el usuario lo dejó a criterio de Claude). Entrada al cierre, **stop 0,2 %**, **TP fijo de
+  70 puntos**; lote de referencia 0,5. Paso 1: comando **`!caja_test`** (solo comprobación, sin avisos
+  de entrada) con velas M15 del **futuro NQ de Yahoo Finance** (gratis, casi 24 h; de USTEC no hay
+  datos gratis); si la regla y los datos encajan con sus operaciones, paso 2: avisos en vivo —
+  decisión del usuario.
+
 - 2026-10-29 — **FVG: hasta 5 señales al día** (`FVG_MAX_POR_DIA = 5`, antes 1). El usuario pidió
   mínimo 5 al día; la FVG no da tantas (con tope 1 salían ~2,4 por semana) y ninguna regla que gane
   en el laboratorio da 5 al día, así que se sube el tope: saldrán todas las que cumplan, sin
@@ -374,6 +388,13 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 (1266 / 907 / 95 en 2010–15 / 2016–20 / 2026); `r1_simular_dia()` también (453 / 356 / 48,
 +0,13 / +0,20 / +0,27 R). Cada operación R1 cerrada va a `historial_nasdaq_r1.csv` (en R).
 
+Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días, hora NY, solo velas
+cerradas) → `caja_simular()` (cajas 📦 08:00 NY hasta la vela de las 09:45 NY y 🌙 15:45 NY
+hasta las 22:00 NY, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja; salida con
+`_caja_salida`: SL 0,2 % / TP 70 pts / si toca los dos, SL / cierre forzado a las 16:00 NY o a las
+08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
+(misma dirección o no; la noche cuenta el día de trading siguiente a la caja).
+
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
 5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.
 
@@ -402,7 +423,7 @@ respaldo de Discord):
 | `DISCORD_CHANNEL_ID_RESPALDO` | Canal del mensaje de respaldo (por defecto, el de señales) | No |
 | `PORT` | Puerto del health check (8080) | No |
 
-El bot necesita el intent **Message Content** (para `!stats` y `!USTEC`; los botones 📊 y 📈 funcionan sin él) y el
+El bot necesita el intent **Message Content** (para `!stats`, `!USTEC` y `!caja_test`; los botones 📊 y 📈 funcionan sin él) y el
 permiso **Fijar mensajes** (respaldo).
 
 ## Despliegue (Northflank)
@@ -436,5 +457,6 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-15 — Comando `!caja_test`: la regla de la caja de USTEC simulada con el futuro NQ (Yahoo) y comparada con las operaciones del usuario.
 - 2026-10-11 — Laboratorio del patrón del usuario (vela de las 15:00 / confirmación a las
   16:30): queda como prueba manual del usuario (ver "Pendiente"); sin cambios en el código.

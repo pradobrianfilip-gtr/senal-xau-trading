@@ -394,11 +394,14 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días, hora NY, solo velas
 cerradas) → `caja_simular()` (cajas 📦 08:00 NY con las velas de las 09:30 y 09:45 NY y 🌙 15:45 NY
 hasta las 22:00 NY, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja; salida con
-`_caja_salida`: SL 0,2 % / TP 70 pts / si toca los dos, SL / cierre forzado a las 16:00 NY o a las
-08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
+`_caja_salida`: TP 70 pts y tres stops a comparar — 0,2 %, otro lado de la caja y extremo de la vela de
+confirmación —; si una vela M15 toca stop y TP se mira dentro con velas M5 de Yahoo y, si no se sabe,
+stop; cierre forzado a las 16:00 NY o a las 08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
 (misma dirección o no; la noche cuenta el día de trading siguiente a la caja) y lista también los
 días que el usuario operó sin señal del bot. Primer `!caja_test` en vivo el 15/11: Yahoo responde desde
 Northflank y la caja del 13/11 cuadra con su gráfico (42 pts frente a ~40; precios del NQ ~85 pts por encima).
+Ese día la vela de las 16:45 subió ~88 pts por encima de la entrada antes de caer ~130: con el stop de 0,2 %
+(~56 pts) el resultado depende del orden dentro de la vela; por eso se añadieron las M5 y los otros dos stops.
 
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
 5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.

@@ -2338,9 +2338,11 @@ def generar_reporte_ustec():
 #      falsa y la buena fue la venta de las 16:30).
 #   🌙 caja = vela de las 22:45 (15:45 NY); lo mismo con las velas hasta las
 #      05:00 de su grafico (22:00 NY).
-#   Entrada al cierre de esa vela, stop 0,2 %, TP 70 puntos; si una vela toca
-#   los dos, cuenta como stop. Sin tocar ninguno: cierre a las 16:00 NY (📦) o
-#   a las 08:00 NY del dia siguiente (🌙, antes de la caja nueva).
+#   Entrada al cierre de esa vela, TP 70 puntos y tres stops para comparar: 0,2 %,
+#   el otro lado de la caja y el extremo de la vela de confirmacion. Si una vela
+#   M15 toca stop y TP, se mira dentro con las velas M5; si no se sabe, stop.
+#   Sin tocar ninguno: cierre a las 16:00 NY (📦) o a las 08:00 NY del dia
+#   siguiente (🌙, antes de la caja nueva).
 # ---------------------------------------------------------------------------
 
 URL_YAHOO_NQ = "https://query1.finance.yahoo.com/v8/finance/chart/NQ=F"
@@ -2350,11 +2352,12 @@ CAJA_CUERPO_MULT = 2.0
 CAJA_LOTE = 0.5
 CAJA_EUR_PUNTO_LOTE = 0.89  # USTEC en la cuenta del usuario: ~0,89 € por punto y lote
 CAJA_HORAS_GRAFICO_SOBRE_NY = 7
+CAJA_STOPS = ("0,2 %", "caja", "vela")  # el primero es el de la regla; los otros, para comparar
 
 
-def _velas_nq_yahoo(rango="60d"):
-    """Velas M15 cerradas del futuro NQ (t = inicio de la vela en hora NY)."""
-    r = requests.get(URL_YAHOO_NQ, params={"interval": "15m", "range": rango},
+def _velas_nq_yahoo(rango="60d", minutos=15):
+    """Velas cerradas del futuro NQ de M15 o M5 (t = inicio de la vela en hora NY)."""
+    r = requests.get(URL_YAHOO_NQ, params={"interval": f"{minutos}m", "range": rango},
                      headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
     r.raise_for_status()
     res = r.json()["chart"]["result"][0]
@@ -2364,7 +2367,7 @@ def _velas_nq_yahoo(rango="60d"):
     for i, ts in enumerate(res.get("timestamp") or []):
         o, h, l, c = (q[k][i] for k in ("open", "high", "low", "close"))
         t = datetime.fromtimestamp(ts, NUEVA_YORK_TZ)
-        if None in (o, h, l, c) or t + timedelta(minutes=15) > ahora:
+        if None in (o, h, l, c) or t + timedelta(minutes=minutos) > ahora:
             continue
         velas.append({"t": t, "o": o, "h": h, "l": l, "c": c})
     return velas
@@ -2377,26 +2380,40 @@ def _caja_ruptura(v, caja):
     return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
 
 
-def _caja_salida(velas, i, d, limite):
-    """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo)."""
-    entrada = velas[i]["c"]
-    sl = entrada * (1 - d * CAJA_SL_PCT / 100)
-    tp = entrada + d * CAJA_TP_PUNTOS
+def _caja_toca(v, d, sl, tp):
+    """(toca el stop, toca el TP) en la vela v."""
+    return ((v["l"] <= sl) if d > 0 else (v["h"] >= sl)), ((v["h"] >= tp) if d > 0 else (v["l"] <= tp))
+
+
+def _caja_salida(velas, i, d, limite, sl, m5=None):
+    """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo).
+    Si una vela toca stop y TP, mira sus velas M5 (m5: inicio M15 -> velas M5) para
+    saber cual fue primero; si tampoco se sabe, cuenta el stop."""
+    tp = velas[i]["c"] + d * CAJA_TP_PUNTOS
     for j in range(i + 1, len(velas)):
         v = velas[j]
         if v["t"] >= limite:  # hueco (pausa o fin de semana): sale a la apertura
             return j, v["o"], "CIERRE"
-        if (v["l"] <= sl) if d > 0 else (v["h"] >= sl):
+        toca_sl, toca_tp = _caja_toca(v, d, sl, tp)
+        if toca_sl and toca_tp:
+            for sub in (m5 or {}).get(v["t"], []):
+                sub_sl, sub_tp = _caja_toca(sub, d, sl, tp)
+                if sub_sl or sub_tp:
+                    toca_tp = sub_tp and not sub_sl
+                    break
+            toca_sl = not toca_tp
+        if toca_sl:
             return j, sl, "SL"
-        if (v["h"] >= tp) if d > 0 else (v["l"] <= tp):
+        if toca_tp:
             return j, tp, "TP"
         if v["t"] + timedelta(minutes=15) >= limite:
             return j, v["c"], "CIERRE"
     return None  # sigue abierta (datos hasta ahora)
 
 
-def caja_simular(velas):
-    """Operaciones de la regla de la caja sobre velas M15 cerradas en hora NY."""
+def caja_simular(velas, m5=None):
+    """Operaciones de la regla de la caja sobre velas M15 cerradas en hora NY, con el
+    resultado de cada stop de CAJA_STOPS en op["res"] (el primero tambien en op)."""
     ops, cajas = [], {}
     for i, v in enumerate(velas):
         t = v["t"]
@@ -2421,13 +2438,19 @@ def caja_simular(velas):
         if not d:
             continue
         caja["usada"] = True
-        salida = _caja_salida(velas, i, d, limite)
         op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"],
-              "caja_h": caja["h"], "caja_l": caja["l"]}
-        if salida:
-            j, precio, motivo = salida
-            op.update(salida=precio, motivo=motivo, t_salida=velas[j]["t"],
-                      puntos=(precio - v["c"]) * d)
+              "caja_h": caja["h"], "caja_l": caja["l"], "res": {}}
+        stops = {"0,2 %": v["c"] * (1 - d * CAJA_SL_PCT / 100),
+                 "caja": caja["l"] if d > 0 else caja["h"],
+                 "vela": v["l"] if d > 0 else v["h"]}
+        for nombre in CAJA_STOPS:
+            salida = _caja_salida(velas, i, d, limite, stops[nombre], m5)
+            if salida:
+                j, precio, motivo = salida
+                op["res"][nombre] = {"motivo": motivo, "t_salida": velas[j]["t"],
+                                     "puntos": (precio - v["c"]) * d, "riesgo": abs(v["c"] - stops[nombre])}
+        if CAJA_STOPS[0] in op["res"]:
+            op.update(op["res"][CAJA_STOPS[0]])
         ops.append(op)
     return ops
 
@@ -2482,7 +2505,14 @@ def generar_reporte_caja():
         return [discord.Embed(title="📦🌙 Caja USTEC -- sin datos",
                               description=f"Yahoo Finance solo devolvio {len(velas)} velas M15 del NQ.",
                               color=0xE24B4A)]
-    ops = caja_simular(velas)
+    m5 = {}
+    try:
+        for sub in _velas_nq_yahoo(minutos=5):
+            inicio = sub["t"] - timedelta(minutes=sub["t"].minute % 15)
+            m5.setdefault(inicio, []).append(sub)
+    except Exception as e:
+        print(f"!caja_test: sin velas M5 ({_sin_secretos(e)}); los empates stop/TP cuentan como stop.")
+    ops = caja_simular(velas, m5)
     try:
         filas, _ = _leer_operaciones_ustec()
     except Exception:
@@ -2503,8 +2533,9 @@ def generar_reporte_caja():
             resultado = "abierta"
         else:
             cerradas.append(op)
-            emoji = {"TP": "✅", "SL": "❌"}.get(op["motivo"], "⏹️")
-            resultado = f"{emoji} {op['motivo']} {op['puntos']:+.0f} pts"
+            resultado = " · ".join(
+                f"{nombre}: {({'TP': '✅', 'SL': '❌'}.get(r['motivo'], '⏹️'))} {r['puntos']:+.0f}"
+                for nombre, r in op["res"].items())
         tuya = tuyas.get((fecha, op["estrategia"]))
         if tuya:
             comparadas.add((fecha, op["estrategia"]))
@@ -2524,19 +2555,25 @@ def generar_reporte_caja():
                       f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])}")
     lineas.sort(key=lambda x: (_orden_fecha(x), x))
 
-    resumen = []
+    resumen = [f"TP {CAJA_TP_PUNTOS} pts; € con {str(CAJA_LOTE).replace('.', ',')} lotes. Stops: **0,2 %** (la "
+               "regla), **caja** (al otro lado de la caja) y **vela** (extremo de la vela de confirmación)."]
     for estrategia in ("apertura", "noche"):
         grupo = [o for o in cerradas if o["estrategia"] == estrategia]
         if not grupo:
             resumen.append(f"{iconos[estrategia]} sin operaciones")
             continue
-        g = sum(o["puntos"] > 0 for o in grupo)
-        pts = sum(o["puntos"] for o in grupo)
-        resumen.append(
-            f"{iconos[estrategia]} {len(grupo)} ops -- TP {sum(o['motivo'] == 'TP' for o in grupo)} · "
-            f"SL {sum(o['motivo'] == 'SL' for o in grupo)} · cierre {sum(o['motivo'] == 'CIERRE' for o in grupo)}"
-            f" · acierto {g / len(grupo) * 100:.0f} % · {pts:+.0f} pts ≈ "
-            f"{_eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)} con {str(CAJA_LOTE).replace('.', ',')} lotes")
+        resumen.append(f"{iconos[estrategia]} **{len(grupo)} operaciones**")
+        for nombre in CAJA_STOPS:
+            res = [o["res"][nombre] for o in grupo if nombre in o["res"]]
+            if not res:
+                continue
+            g = sum(r["puntos"] > 0 for r in res)
+            pts = sum(r["puntos"] for r in res)
+            resumen.append(
+                f"  stop {nombre} (≈{sum(r['riesgo'] for r in res) / len(res):.0f} pts): "
+                f"TP {sum(r['motivo'] == 'TP' for r in res)} · SL {sum(r['motivo'] == 'SL' for r in res)} · "
+                f"cierre {sum(r['motivo'] == 'CIERRE' for r in res)} · acierto {g / len(res) * 100:.0f} % · "
+                f"{pts:+.0f} pts ≈ **{_eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)}**")
     resumen += [
         "",
         f"**Comparado con tus operaciones:** {coinciden} días en la misma dirección, {contrarias} en la "

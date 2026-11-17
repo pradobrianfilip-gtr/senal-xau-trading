@@ -40,6 +40,11 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-17 — **Cajas sin stop** (`CAJA_CON_STOP = False`, el usuario: "quita el stop loss"): los avisos ya no
+  llevan stop; la operación sale en el **TP de 70 pts** o en el **cierre forzado** (📦 23:00 de su gráfico, 🌙
+  15:00 de su gráfico), y el aviso lo dice. `!caja_test` muestra "sin stop" (la regla) y, para comparar,
+  con stop de 0,2 % y al otro lado de la caja. Se le recordó que sus pérdidas grandes (−600 €) fueron
+  sin stop — decisión del usuario.
 - 2026-11-17 — **Segunda oportunidad dentro de la vela de las 16:45** (el usuario, sobre las imágenes de la
   regla; "yo nunca he dicho nada de las 17:00"): 📦 si la vela de las **16:30** cierra fuera de la caja y
   mide **el doble**, se entra a las 16:45; si no, aviso "⏳ la vela de las 16:30 no confirma" a las 16:45 y
@@ -425,8 +430,7 @@ Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días,
 cerradas) → `caja_simular()` (cajas 📦 08:00 NY con la vela de las 09:30 NY y 🌙 15:45 NY
 con la vela de las 18:00 NY, `_caja_noche_vela`, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja, o si no, dentro de la
 vela siguiente la primera M5 que cierra fuera (`_caja_sale_m5`); salida con
-`_caja_salida`: TP 70 pts y tres stops a comparar — 0,2 %, otro lado de la caja y extremo de la vela de
-confirmación —; si una vela M15 toca stop y TP se mira dentro con velas M5 de Yahoo y, si no se sabe,
+`_caja_salida`: TP 70 pts y tres variantes a comparar — sin stop (la regla), 0,2 % y otro lado de la caja —; si una vela M15 toca stop y TP se mira dentro con velas M5 de Yahoo y, si no se sabe,
 stop; cierre forzado a las 16:00 NY o a las 08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
 (misma dirección o no; la noche cuenta el día de trading siguiente a la caja) y lista también los
 días que el usuario operó sin señal del bot. Primer `!caja_test` en vivo el 15/11: Yahoo responde desde
@@ -502,6 +506,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-17 — Cajas sin stop: salida en el TP de 70 pts o en el cierre forzado.
 - 2026-11-17 — Cajas: si la 1.ª vela (16:30 / 01:00) no confirma con el doble, se entra dentro de la siguiente (16:45 / 01:15) en cuanto una vela M5 sale de la caja.
 - 2026-11-16 — Caja 🌙: un solo aviso a la 01:15 con la vela de la 01:00 (reapertura).
 - 2026-11-16 — Aviso "📏 caja marcada" al empezar a vigilar cada caja.

@@ -2353,7 +2353,8 @@ CAJA_CUERPO_MULT = 2.0
 CAJA_LOTE = 0.5
 CAJA_EUR_PUNTO_LOTE = 0.89  # USTEC en la cuenta del usuario: ~0,89 € por punto y lote
 CAJA_HORAS_GRAFICO_SOBRE_NY = 7
-CAJA_STOPS = ("0,2 %", "caja", "vela")  # el primero es el de la regla; los otros, para comparar
+CAJA_CON_STOP = False  # decision del usuario (2026-11-17): sin stop; sale en el TP o en el cierre forzado
+CAJA_STOPS = ("sin stop", "0,2 %", "caja")  # el primero es el de la regla; los otros, para comparar
 
 
 def _velas_nq_yahoo(rango="60d", minutos=15):
@@ -2383,8 +2384,9 @@ def _caja_ruptura(v, caja, doble=True):
 
 
 def _caja_toca(v, d, sl, tp):
-    """(toca el stop, toca el TP) en la vela v."""
-    return ((v["l"] <= sl) if d > 0 else (v["h"] >= sl)), ((v["h"] >= tp) if d > 0 else (v["l"] <= tp))
+    """(toca el stop, toca el TP) en la vela v; sin stop (sl None) nunca toca el stop."""
+    toca_sl = sl is not None and ((v["l"] <= sl) if d > 0 else (v["h"] >= sl))
+    return toca_sl, ((v["h"] >= tp) if d > 0 else (v["l"] <= tp))
 
 
 def _caja_sale_m5(subs, caja):
@@ -2468,15 +2470,15 @@ def caja_simular(velas, m5=None):
         entrada = conf["c"]
         op = {"estrategia": estrategia, "dir": d, "t": conf["t"], "fin": _caja_fin(conf), "entrada": entrada,
               "segunda": not primera, "caja_h": caja["h"], "caja_l": caja["l"], "res": {}}
-        stops = {"0,2 %": entrada * (1 - d * CAJA_SL_PCT / 100),
-                 "caja": caja["l"] if d > 0 else caja["h"],
-                 "vela": conf["l"] if d > 0 else conf["h"]}
+        stops = {"sin stop": None,
+                 "0,2 %": entrada * (1 - d * CAJA_SL_PCT / 100),
+                 "caja": caja["l"] if d > 0 else caja["h"]}
         for nombre in CAJA_STOPS:
             salida = _caja_salida(velas, i, d, limite, stops[nombre], m5, entrada)
             if salida:
                 j, precio, motivo = salida
                 op["res"][nombre] = {"motivo": motivo, "t_salida": velas[j]["t"],
-                                     "puntos": (precio - entrada) * d, "riesgo": abs(entrada - stops[nombre])}
+                                     "puntos": (precio - entrada) * d, "riesgo": abs(entrada - stops[nombre]) if stops[nombre] else None}
         if CAJA_STOPS[0] in op["res"]:
             op.update(op["res"][CAJA_STOPS[0]])
         ops.append(op)
@@ -2588,8 +2590,9 @@ def generar_reporte_caja():
                       f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])}")
     lineas.sort(key=lambda x: (_orden_fecha(x), x))
 
-    resumen = [f"TP {CAJA_TP_PUNTOS} pts; € con {str(CAJA_LOTE).replace('.', ',')} lotes. Stops: **0,2 %** (la "
-               "regla), **caja** (al otro lado de la caja) y **vela** (extremo de la vela de confirmación)."]
+    resumen = [f"TP {CAJA_TP_PUNTOS} pts; € con {str(CAJA_LOTE).replace('.', ',')} lotes. **Sin stop** (la regla: "
+               "sale en el TP o en el cierre forzado) y, para comparar, con stop de **0,2 %** y al otro lado de la "
+               "**caja**."]
     for estrategia in ("apertura", "noche"):
         grupo = [o for o in cerradas if o["estrategia"] == estrategia]
         if not grupo:
@@ -2602,8 +2605,9 @@ def generar_reporte_caja():
                 continue
             g = sum(r["puntos"] > 0 for r in res)
             pts = sum(r["puntos"] for r in res)
+            riesgo = [r["riesgo"] for r in res if r["riesgo"]]
             resumen.append(
-                f"  stop {nombre} (≈{sum(r['riesgo'] for r in res) / len(res):.0f} pts): "
+                f"  {nombre}" + (f" (≈{sum(riesgo) / len(riesgo):.0f} pts)" if riesgo else "") + ": "
                 f"TP {sum(r['motivo'] == 'TP' for r in res)} · SL {sum(r['motivo'] == 'SL' for r in res)} · "
                 f"cierre {sum(r['motivo'] == 'CIERRE' for r in res)} · acierto {g / len(res) * 100:.0f} % · "
                 f"{pts:+.0f} pts ≈ **{_eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)}**")
@@ -2680,7 +2684,7 @@ def _caja_aviso_caja(estado, ahora, icono, cabecera, nombre_caja, rango, h1, h2)
                  color=0x95A5A6)
 
 
-def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
+def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, texto_limite=""):
     """Aviso de entrada: confirmacion, doble, BUY/SELL, TP y stop en puntos."""
     d, v = op["dir"], op["vela"]
     lado = "BUY" if d > 0 else "SELL"
@@ -2699,7 +2703,8 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
                  f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(_caja_fin(v))} de tu gráfico)\n"
                  f"🎯 TP: **{'+' if d > 0 else '-'}{CAJA_TP_PUNTOS} pts** desde tu entrada "
                  f"(≈ {_caja_eur(CAJA_TP_PUNTOS)} con {str(CAJA_LOTE).replace('.', ',')} lotes)\n"
-                 f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {_caja_eur(-sl_pts)})",
+                 + (f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {_caja_eur(-sl_pts)})"
+                    if CAJA_CON_STOP else f"Sin stop: si no llega al TP, se cierra {texto_limite}."),
                  color=0x2ECC71 if d > 0 else 0xE74C3C)
 
 
@@ -2741,7 +2746,7 @@ def _caja_seguir(estado, ahora, icono, velas, op, limite, texto_cierre):
     d, entrada = op["dir"], op["vela"]["c"]
     lado, hora = ("BUY" if d > 0 else "SELL"), _caja_hora_grafico(_caja_fin(op["vela"]))
     sl_pts = entrada * CAJA_SL_PCT / 100
-    sl, tp = entrada - d * sl_pts, entrada + d * CAJA_TP_PUNTOS
+    sl, tp = (entrada - d * sl_pts if CAJA_CON_STOP else None), entrada + d * CAJA_TP_PUNTOS
     for v in velas:
         if v["t"] <= op["vela"]["t"]:
             continue
@@ -2810,7 +2815,7 @@ def revisar_caja_apertura(ahora=None):
     _caja_aviso_caja(estado, ahora, "📦", dia, "15:00", rango, "16:30", "16:45")
     if _caja_decidir(estado, ahora, "📦", dia, "15:00", caja, v1, v2, "hoy no hay entrada") is None:
         return
-    _caja_aviso_entrada(estado, ahora, "📦", dia, estado["op"], "15:00", rango)
+    _caja_aviso_entrada(estado, ahora, "📦", dia, estado["op"], "15:00", rango, "a las 23:00 de tu gráfico")
     _caja_seguir(estado, ahora, "📦", velas, estado["op"], ahora.replace(hour=16, minute=0, second=0, microsecond=0),
                  "Wall Street cierra (23:00 de tu gráfico)")
 
@@ -2859,7 +2864,8 @@ def revisar_caja_noche(ahora=None):
         if _caja_decidir(estado, ahora, "🌙", cabecera, "22:45", caja, v1, v2, "esta noche no hay entrada") is None:
             return
     op = estado["op"]
-    _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"])
+    _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"],
+                        "a las 15:00 de tu gráfico")
     limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)
     _caja_seguir(estado, ahora, "🌙", velas, op, limite, "Llegan las 15:00 de tu gráfico")
 

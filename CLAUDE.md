@@ -411,7 +411,7 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   | 2026-11-17 | 📦 venta | **2 ventas de 0,3** (no 0,5) en 27.153,2 / 27.148,7 → 27.075,1 / 27.067,4, cerradas a las 17:10 (~+78 y +81 pts) | ✅ **+43,50 €** (+21,31 y +22,19) |
 
   Acumulado 2.0: **+43,50 €** en 2 operaciones; cuenta 200 € → 243,50 €. (Tras su cierre la vela de las
-  17:30 cayó ~+500 pts más.)
+  17:30 siguió cayendo ~500 pts.)
 
 ## Arquitectura
 

@@ -40,6 +40,28 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-17 — **Cajas sin stop** (`CAJA_CON_STOP = False`, el usuario: "quita el stop loss"): los avisos ya no
+  llevan stop; la operación sale en el **TP de 70 pts** o en el **cierre forzado** (📦 23:00 de su gráfico, 🌙
+  15:00 de su gráfico), y el aviso lo dice. `!caja_test` muestra "sin stop" (la regla) y, para comparar,
+  con stop de 0,2 % y al otro lado de la caja. Se le recordó que sus pérdidas grandes (−600 €) fueron
+  sin stop — decisión del usuario.
+- 2026-11-17 — **Segunda oportunidad dentro de la vela de las 16:45** (el usuario, sobre las imágenes de la
+  regla; "yo nunca he dicho nada de las 17:00"): 📦 si la vela de las **16:30** cierra fuera de la caja y
+  mide **el doble**, se entra a las 16:45; si no, aviso "⏳ la vela de las 16:30 no confirma" a las 16:45 y
+  **durante la vela de las 16:45** se entra **en cuanto salga de la caja**, en ese sentido (el bot lo ve con
+  la primera vela **M5** que cierra fuera: aviso a las 16:50 o 16:55); si no sale en toda la vela, "no hay
+  entrada". 🌙 igual con la vela de la **01:00** (aviso 01:15) y, si no, dentro de la de la **01:15**. El
+  usuario confirmó con la imagen de ejemplo (vela de las 15:00 con mechas, caja de 62 pts) — decisión del usuario.
+- 2026-11-16 — **La caja 🌙 se confirma solo con la vela de la 01:00 de su gráfico** (18:00 NY, la
+  reapertura tras la pausa diaria) y **un solo aviso a la 01:15**, igual que la 📦 con la vela de las
+  16:30 y el aviso de las 16:45 (el usuario: "que la caja dé el aviso a la 01:15"). Las velas de 23:00 a
+  23:45 solo se observan; la caja del viernes se confirma con la reapertura del domingo. Si no rompe:
+  "esta noche no hay entrada" a la 01:15. Sustituye la ventana "primera ruptura hasta las 05:00" del
+  2026-11-15 — decisión del usuario.
+- 2026-11-16 — **Aviso "📏 caja marcada"** al empezar a vigilar cada caja (📦 a las 15:15 de su gráfico;
+  🌙 a las 23:00 de su gráfico): cuánto mide la vela de la caja y cuánto tiene que medir la ruptura (el doble).
+  Motivo: la primera noche (domingo) no llegó nada y el usuario pensó que el bot no había empezado —
+  decisión de Claude a petición del usuario ("dale iniciar para ver el día de hoy").
 - 2026-11-15 — **Avisos en vivo también de la caja 🌙** (`CAJA_AVISOS_NOCHE_ACTIVO = True`, pedido del
   usuario "desde hoy"): caja de las 22:45 de su gráfico y aviso con la primera vela que la rompa con el
   doble de tamaño hasta las 05:00 (mismo formato que la 📦; "Noche del lunes 16/11"); la caja del
@@ -406,9 +428,9 @@ y el 12/10 un redeploy repitió la VENTA de las 16:30 a las 16:47. Cada operaci�
 
 Caja USTEC (`!caja_test`, sin avisos): `_velas_nq_yahoo()` (NQ=F, M15, 60 días, hora NY, solo velas
 cerradas) → `caja_simular()` (cajas 📦 08:00 NY con la vela de las 09:30 NY y 🌙 15:45 NY
-hasta las 22:00 NY, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja; salida con
-`_caja_salida`: TP 70 pts y tres stops a comparar — 0,2 %, otro lado de la caja y extremo de la vela de
-confirmación —; si una vela M15 toca stop y TP se mira dentro con velas M5 de Yahoo y, si no se sabe,
+con la vela de las 18:00 NY, `_caja_noche_vela`, misma ruptura `_caja_ruptura`: cierra fuera y mide el doble que la vela de la caja, o si no, dentro de la
+vela siguiente la primera M5 que cierra fuera (`_caja_sale_m5`); salida con
+`_caja_salida`: TP 70 pts y tres variantes a comparar — sin stop (la regla), 0,2 % y otro lado de la caja —; si una vela M15 toca stop y TP se mira dentro con velas M5 de Yahoo y, si no se sabe,
 stop; cierre forzado a las 16:00 NY o a las 08:00 NY del día siguiente) → `generar_reporte_caja()` compara cada día con `operaciones_ustec.csv`
 (misma dirección o no; la noche cuenta el día de trading siguiente a la caja) y lista también los
 días que el usuario operó sin señal del bot. Primer `!caja_test` en vivo el 15/11: Yahoo responde desde
@@ -417,9 +439,9 @@ Ese día la vela de las 16:45 subió ~88 pts por encima de la entrada antes de c
 (~56 pts) el resultado depende del orden dentro de la vela; por eso se añadieron las M5 y los otros dos stops.
 
 Avisos en vivo de las cajas: `revisar_caja_periodicamente` (cada minuto) → `revisar_caja_apertura()`
-(pide velas al NQ de 09:45 a 10:05 NY y luego cada 5 min si hay operación) y `revisar_caja_noche()` (al
-cierre de cada vela de la ventana 🌙, `_caja_noche_hasta`, y cada 5 min con operación); comparten
-`_caja_aviso_entrada` y `_caja_seguir`; estado en memoria (`_caja_vivo`, `_caja_noche`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
+(pide velas al NQ de 09:45 a 10:05 NY y luego cada 5 min si hay operación) y `revisar_caja_noche()` (a las 16:00 NY
+para la caja y a las 18:15 NY para la vela de la reapertura, `_caja_noche_vela`, y cada 5 min con operación); comparten
+`_caja_decidir` (1.ª vela con el doble o, si no, aviso de espera y entrada con la primera M5 de la 2.ª vela que sale de la caja), `_caja_aviso_entrada` y `_caja_seguir`; estado en memoria (`_caja_vivo`, `_caja_noche`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
 (`CAJA_MAX_RETRASO_MIN`). Si una vela toca stop y TP, mira sus velas M5.
 
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
@@ -484,6 +506,10 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-17 — Cajas sin stop: salida en el TP de 70 pts o en el cierre forzado.
+- 2026-11-17 — Cajas: si la 1.ª vela (16:30 / 01:00) no confirma con el doble, se entra dentro de la siguiente (16:45 / 01:15) en cuanto una vela M5 sale de la caja.
+- 2026-11-16 — Caja 🌙: un solo aviso a la 01:15 con la vela de la 01:00 (reapertura).
+- 2026-11-16 — Aviso "📏 caja marcada" al empezar a vigilar cada caja.
 - 2026-11-15 — Avisos en vivo de la caja 🌙 (22:45 → ruptura hasta las 05:00; la del viernes, en la reapertura del domingo).
 - 2026-11-15 — Avisos en vivo de la caja 📦 de USTEC (un aviso a las 16:45: confirmación y doble de la vela de las 16:30, BUY/SELL, TP 70 pts).
 - 2026-11-15 — Comando `!caja_test`: la regla de la caja de USTEC simulada con el futuro NQ (Yahoo) y comparada con las operaciones del usuario.

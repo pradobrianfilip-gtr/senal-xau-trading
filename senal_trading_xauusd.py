@@ -2387,11 +2387,20 @@ def _caja_toca(v, d, sl, tp):
     return ((v["l"] <= sl) if d > 0 else (v["h"] >= sl)), ((v["h"] >= tp) if d > 0 else (v["l"] <= tp))
 
 
-def _caja_salida(velas, i, d, limite, sl, m5=None):
+def _caja_sale_m5(subs, caja):
+    """2.a vela (16:45 / 01:15): la primera vela M5 que cierra fuera de la caja marca el
+    sentido y la entrada, dentro de la misma vela M15. Devuelve (dir, vela M5) o (0, None)."""
+    for sub in subs:
+        if d := _caja_ruptura(sub, caja, doble=False):
+            return d, dict(sub, min=5)
+    return 0, None
+
+
+def _caja_salida(velas, i, d, limite, sl, m5=None, entrada=None):
     """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo).
     Si una vela toca stop y TP, mira sus velas M5 (m5: inicio M15 -> velas M5) para
     saber cual fue primero; si tampoco se sabe, cuenta el stop."""
-    tp = velas[i]["c"] + d * CAJA_TP_PUNTOS
+    tp = (velas[i]["c"] if entrada is None else entrada) + d * CAJA_TP_PUNTOS
     for j in range(i + 1, len(velas)):
         v = velas[j]
         if v["t"] >= limite:  # hueco (pausa o fin de semana): sale a la apertura
@@ -2439,28 +2448,35 @@ def caja_simular(velas, m5=None):
                 break
         else:
             continue
-        # 1.a vela (16:30 / 01:00): cierra fuera y mide el doble; si no, la siguiente
-        # (16:45 / 01:15) confirma con solo cerrar fuera de la caja.
+        # 1.a vela (16:30 / 01:00): cierra fuera y mide el doble; si no, se entra dentro
+        # de la siguiente (16:45 / 01:15) en cuanto una vela M5 cierra fuera de la caja.
         primera = t == caja["vela"]
-        d = _caja_ruptura(v, caja, doble=primera)
-        if not d and primera:
-            continue
+        conf = v
+        if primera:
+            d = _caja_ruptura(v, caja)
+            if not d:
+                continue
+        elif (m5 or {}).get(t):
+            d, conf = _caja_sale_m5(m5[t], caja)
+        else:  # sin velas M5: con el cierre de la vela M15
+            d = _caja_ruptura(v, caja, doble=False)
         del cajas[estrategia]
         if not d:
             continue
         limite = (t.replace(hour=16, minute=0) if estrategia == "apertura"
                   else (t + timedelta(days=1)).replace(hour=8, minute=0))
-        op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"], "segunda": not primera,
-              "caja_h": caja["h"], "caja_l": caja["l"], "res": {}}
-        stops = {"0,2 %": v["c"] * (1 - d * CAJA_SL_PCT / 100),
+        entrada = conf["c"]
+        op = {"estrategia": estrategia, "dir": d, "t": conf["t"], "fin": _caja_fin(conf), "entrada": entrada,
+              "segunda": not primera, "caja_h": caja["h"], "caja_l": caja["l"], "res": {}}
+        stops = {"0,2 %": entrada * (1 - d * CAJA_SL_PCT / 100),
                  "caja": caja["l"] if d > 0 else caja["h"],
-                 "vela": v["l"] if d > 0 else v["h"]}
+                 "vela": conf["l"] if d > 0 else conf["h"]}
         for nombre in CAJA_STOPS:
-            salida = _caja_salida(velas, i, d, limite, stops[nombre], m5)
+            salida = _caja_salida(velas, i, d, limite, stops[nombre], m5, entrada)
             if salida:
                 j, precio, motivo = salida
                 op["res"][nombre] = {"motivo": motivo, "t_salida": velas[j]["t"],
-                                     "puntos": (precio - v["c"]) * d, "riesgo": abs(v["c"] - stops[nombre])}
+                                     "puntos": (precio - entrada) * d, "riesgo": abs(entrada - stops[nombre])}
         if CAJA_STOPS[0] in op["res"]:
             op.update(op["res"][CAJA_STOPS[0]])
         ops.append(op)
@@ -2562,7 +2578,7 @@ def generar_reporte_caja():
             tu_txt = f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])} {'✔' if igual else '✖'}"
         else:
             tu_txt = "tú: no operaste"
-        hora = (op["t"] + timedelta(minutes=15 + 60 * CAJA_HORAS_GRAFICO_SOBRE_NY)).strftime("%H:%M")
+        hora = _caja_hora_grafico(op["fin"])
         lineas.append(f"{iconos[op['estrategia']]} **{_fecha_corta(fecha)}** {lado} a las {hora} "
                       f"(caja {_miles(op['caja_l'])}–{_miles(op['caja_h'])}) → {resultado} · {tu_txt}")
     sin_senal = sorted(k for k in tuyas if k not in comparadas and k[0] >= _fecha_grafico(velas[0]["t"]))
@@ -2643,19 +2659,25 @@ def _caja_avisar(estado, clave, cierre, ahora, titulo, texto, color=COLOR_USTEC)
 
 
 def _caja_fin(v):
-    return v["t"] + timedelta(minutes=15)
+    return v["t"] + timedelta(minutes=v.get("min", 15))
+
+
+def _caja_inicio_m15(t):
+    return t - timedelta(minutes=t.minute % 15)
 
 
 def _caja_eur(pts):
     return _eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)
 
 
-def _caja_aviso_caja(estado, ahora, icono, cabecera, nombre_caja, rango, vigilancia):
+def _caja_aviso_caja(estado, ahora, icono, cabecera, nombre_caja, rango, h1, h2):
     """Aviso de que la caja ya esta marcada y el bot la esta vigilando (una vez por caja)."""
     _caja_avisar(estado, "caja", ahora, ahora, f"{icono}📏 USTEC -- caja de las {nombre_caja} marcada",
                  f"**{cabecera}** · la vela de las {nombre_caja} mide **{rango:.0f} pts**\n"
-                 f"{vigilancia}: tiene que cerrar fuera de la caja y medir **{CAJA_CUERPO_MULT * rango:.0f} pts** "
-                 f"o más (el doble).", color=0x95A5A6)
+                 f"1️⃣ Vela de las **{h1}**: si cierra fuera de la caja y mide **{CAJA_CUERPO_MULT * rango:.0f} pts** "
+                 f"o más (el doble) → entrada a las **{h2}**.\n"
+                 f"2️⃣ Si no, en la vela de las **{h2}** entro en cuanto salga de la caja, en ese sentido.",
+                 color=0x95A5A6)
 
 
 def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
@@ -2665,10 +2687,12 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
     sl_pts = v["c"] * CAJA_SL_PCT / 100
     _caja_avisar(estado, "entrada", _caja_fin(v), ahora, f"{icono}{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
                  f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
-                 + (f"➖ La vela de las {_caja_hora_grafico(v['t'] - timedelta(minutes=15))} no confirmó\n"
-                    if op.get("segunda") else "")
-                 + f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
-                 f"{'por encima' if d > 0 else 'por debajo'} de la caja\n"
+                 + (f"➖ La vela de las {_caja_hora_grafico(_caja_inicio_m15(v['t']) - timedelta(minutes=15))} "
+                    f"no confirmó\n✅ **Confirmación:** la vela de las **{_caja_hora_grafico(_caja_inicio_m15(v['t']))}** "
+                    f"sale {'por encima' if d > 0 else 'por debajo'} de la caja\n"
+                    if op.get("segunda") else
+                    f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
+                    f"{'por encima' if d > 0 else 'por debajo'} de la caja\n")
                  + ("" if op.get("segunda") else
                     f"✅ **Doble:** mide {v['h'] - v['l']:.0f} pts, más del doble que la de las {nombre_caja}\n")
                  + "\n"
@@ -2681,8 +2705,8 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
 
 def _caja_decidir(estado, ahora, icono, cabecera, nombre_caja, caja, v1, v2, que_no):
     """Decide la entrada: la 1.a vela (16:30 / 01:00) si cierra fuera y mide el doble; si
-    no, avisa y espera a la 2.a (16:45 / 01:15), que confirma con solo cerrar fuera de la
-    caja, en su sentido. Devuelve la operacion o None."""
+    no, avisa y, dentro de la 2.a (16:45 / 01:15), entra en cuanto una vela M5 cierra fuera
+    de la caja, en ese sentido. Devuelve la operacion o None."""
     if estado["op"] is not None or v1 is None:
         return estado["op"]
     rango, h1, h2 = caja["h"] - caja["l"], _caja_hora_grafico(v1["t"]), _caja_hora_grafico(_caja_fin(v1))
@@ -2692,17 +2716,23 @@ def _caja_decidir(estado, ahora, icono, cabecera, nombre_caja, caja, v1, v2, que
     _caja_avisar(estado, "espera", _caja_fin(v1), ahora, f"{icono}⏳ USTEC -- la vela de las {h1} no confirma",
                  f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
                  f"➖ La vela de las {h1} ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble de tamaño.\n"
-                 f"⏳ Espero a la de las **{h2}**: si cierra fuera de la caja, entro en su sentido "
-                 f"(aviso a las {_caja_hora_grafico(_caja_fin(v1) + timedelta(minutes=15))} de tu gráfico).")
-    if v2 is None:
-        return None
-    if d := _caja_ruptura(v2, caja, doble=False):
-        estado["op"] = {"dir": d, "vela": v2, "segunda": True}
+                 f"⏳ Miro la vela de las **{h2}**: en cuanto salga de la caja, entra en ese sentido "
+                 f"(te aviso al momento, con las velas de 5 minutos).")
+    try:
+        subs = [x for x in _velas_nq_yahoo(rango="1d", minutos=5)
+                if _caja_fin(v1) <= x["t"] < _caja_fin(v1) + timedelta(minutes=15)]
+    except Exception as e:
+        print(f"Caja USTEC: sin velas M5 del NQ ({_sin_secretos(e)})")
+        subs = []
+    d, sub = _caja_sale_m5(subs, caja)
+    if d:
+        estado["op"] = {"dir": d, "vela": sub, "segunda": True}
         return estado["op"]
-    _caja_avisar(estado, "fin", _caja_fin(v2), ahora, f"{icono}➖ USTEC -- {que_no}",
-                 f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
-                 f"Ni la vela de las {h1} rompió con el doble ni la de las {h2} cerró fuera de la caja. "
-                 f"**No se opera.**", color=0x95A5A6)
+    if v2 is not None:
+        _caja_avisar(estado, "fin", _caja_fin(v2), ahora, f"{icono}➖ USTEC -- {que_no}",
+                     f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
+                     f"Ni la vela de las {h1} rompió con el doble ni la de las {h2} salió de la caja. "
+                     f"**No se opera.**", color=0x95A5A6)
     return None
 
 
@@ -2777,8 +2807,7 @@ def revisar_caja_apertura(ahora=None):
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
     rango = caja["h"] - caja["l"]
     dia = f"{DIAS_SEMANA[ahora.weekday()]} {ahora.strftime('%d/%m')}"
-    _caja_aviso_caja(estado, ahora, "📦", dia, "15:00", rango,
-                     "Miro la vela de las **16:30** (aviso a las **16:45**) y, si no confirma, la de las 16:45")
+    _caja_aviso_caja(estado, ahora, "📦", dia, "15:00", rango, "16:30", "16:45")
     if _caja_decidir(estado, ahora, "📦", dia, "15:00", caja, v1, v2, "hoy no hay entrada") is None:
         return
     _caja_aviso_entrada(estado, ahora, "📦", dia, estado["op"], "15:00", rango)
@@ -2823,8 +2852,7 @@ def revisar_caja_noche(ahora=None):
     if caja_v["t"].weekday() == 4:
         cabecera += " (caja del viernes)"
     if ahora < t_vela + timedelta(minutes=15):
-        _caja_aviso_caja(estado, ahora, "🌙", cabecera, "22:45", caja["h"] - caja["l"],
-                         "Miro la vela de la **01:00** (reapertura; aviso a la **01:15**) y, si no confirma, la de la 01:15")
+        _caja_aviso_caja(estado, ahora, "🌙", cabecera, "22:45", caja["h"] - caja["l"], "01:00", "01:15")
     if estado["op"] is None:
         v1 = next((v for v in velas if v["t"] == t_vela), None)
         v2 = next((v for v in velas if v["t"] == t_vela + timedelta(minutes=15)), None)

@@ -1,83 +1,85 @@
-fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,nota
-2026-10-12,apertura,venta,0.5+0.3+0.3,,,58.84,3,,,3 ventas (la 1.ª antes de la confirmación); sin desglose por operación
-2026-10-13,apertura,venta,0.3+0.3,,,-57.00,2,0,2,2 ventas antes de la confirmación (la regla decía compra)
-2026-10-14,noche,compra,0.5,30588.6,30650.0,27.40,,,,
-2026-10-14,apertura,compra,0.5,30437.3,30003.9,-194.98,,,,vela equivocada (14:30) y sin stop
-2026-10-15,noche,venta,0.8,29869.0,29807.3,44.21,,,,
-2026-10-15,apertura,venta,0.5,29559.9,29527.7,14.36,,,,antes de la confirmación
-2026-10-15,apertura,venta,0.5,29525.6,29517.3,3.70,,,,antes de la confirmación
-2026-10-15,apertura,compra,0.5,29630.3,29718.1,39.20,,,,
-2026-10-15,apertura,compra,0.5,29634.3,29716.9,36.88,,,,
-2026-10-16,noche,venta,0.3,29897.5,29762.0,36.26,,,,
-2026-10-16,noche,venta,0.3,29898.0,29868.3,7.91,,,,
-2026-10-16,apertura,venta,0.2,29688.3,29681.0,1.30,,,,
-2026-10-16,apertura,venta,0.2,29738.3,29650.8,15.55,,,,
-2026-10-16,apertura,venta,0.2,29723.1,29651.0,12.81,,,,
-2026-10-19,noche,compra,0.2,29333.4,29524.6,34.05,,,,
-2026-10-19,noche,compra,0.2,29329.9,29573.7,43.42,,,,
-2026-10-19,apertura,compra,0.5,29507.1,29578.0,31.61,,,,
-2026-10-19,apertura,compra,0.5,29586.9,29661.6,33.30,,,,
-2026-10-19,apertura,compra,0.5,29588.1,29663.2,33.48,,,,
-2026-10-19,apertura,compra,0.1,29586.2,29664.0,6.94,,,,
-2026-10-19,apertura,compra,0.1,29588.2,29670.5,7.34,,,,
-2026-10-20,noche,venta,0.1,29525.9,29424.2,9.06,,,,
-2026-10-20,noche,venta,0.1,29525.8,29427.2,8.78,,,,
-2026-10-20,apertura,venta,0.1,29216.9,29772.1,-49.43,,,,antes de la confirmación y sin stop
-2026-10-20,apertura,venta,0.1,29231.9,29771.7,-48.06,,,,antes de la confirmación y sin stop
-2026-10-21,noche,compra,0.1,29787.9,29566.2,-19.77,,,,sin stop
-2026-10-21,noche,compra,0.1,29788.7,29567.9,-19.69,,,,sin stop
-2026-10-21,apertura,compra,0.1,29716.6,29863.4,13.08,,,,
-2026-10-21,apertura,compra,0.1,29722.8,29869.1,13.04,,,,
-2026-10-22,noche,venta,0.1,29730.7,29494.3,21.03,,,,
-2026-10-22,apertura,compra,0.1,29391.3,29306.1,-7.61,,,,
-2026-10-22,apertura,venta,0.1,29261.4,29092.0,15.12,,,,
-2026-10-22,apertura,venta,0.1,29255.7,29095.0,14.34,,,,
-2026-10-23,apertura,compra,0.1,28984.1,29062.8,7.03,,,,
-2026-10-23,apertura,compra,0.1,28979.8,29063.9,7.51,,,,
-2026-10-26,noche,compra,0.5,29087.1,29138.4,22.86,,,,abierta el viernes y cerrada el lunes (fin de semana)
-2026-10-26,noche,compra,0.2,29084.7,29139.4,9.75,,,,abierta el viernes y cerrada el lunes (fin de semana)
-2026-10-26,apertura,venta,0.5,29048.2,29324.1,-123.40,,,,hora equivocada por el cambio de horario y sin stop
-2026-10-26,apertura,venta,0.5,29044.4,29329.4,-127.47,,,,hora equivocada por el cambio de horario y sin stop
-2026-10-27,noche,venta,0.5,29265.6,29204.3,27.45,,,,
-2026-10-27,noche,venta,0.5,29257.2,29186.2,31.80,,,,
-2026-10-27,apertura,compra,0.5,29444.5,29531.5,39.02,,,,
-2026-10-27,apertura,compra,0.5,29443.6,29532.6,39.92,,,,
-2026-10-29,noche,venta,0.5,29674.9,29606.6,30.62,,,,caja de las 22:45 del 28; cerrada el 28/10 a las 23:38
-2026-10-29,noche,venta,0.5,29676.5,29606.6,31.33,,,,caja de las 22:45 del 28; cerrada el 28/10 a las 23:38
-2026-10-29,noche,venta,0.5,29575.6,29506.7,30.90,,,,
-2026-10-29,noche,venta,0.5,29572.8,29503.9,30.90,,,,
-2026-10-29,noche,venta,0.5,29519.8,29451.8,30.51,,,,
-2026-10-29,noche,venta,0.5,29512.6,29443.6,30.96,,,,
-2026-10-29,apertura,venta,5,29388.5,29370.8,79.55,,,,lote de 5
-2026-10-29,apertura,venta,5,29383.5,29367.0,74.16,,,,lote de 5
-2026-10-29,apertura,venta,1,29374.1,29332.4,37.47,,,,
-2026-10-29,apertura,venta,1,29344.9,29295.5,44.39,,,,
-2026-10-30,noche,venta,0.5,29317.1,29245.7,31.98,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01
-2026-10-30,noche,venta,0.5,29318.4,29245.7,32.56,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01
-2026-10-30,noche,venta,0.1,28949.7,28722.7,20.26,,,,
-2026-10-30,noche,venta,0.1,28946.1,28708.9,21.16,,,,
-2026-11-02,apertura,compra,0.5,28651.9,28709.4,25.65,,,,
-2026-11-02,apertura,compra,0.3,28658.1,28686.0,7.47,,,,
-2026-11-03,noche,compra,1.4,28058.1,28106.1,60.08,,,,caja de las 22:45 del 2
-2026-11-03,noche,compra,1.4,28093.5,28138.1,55.81,,,,caja de las 22:45 del 2
-2026-11-03,apertura,compra,1.7,28181.9,28225.2,65.81,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30)
-2026-11-03,apertura,compra,1.7,28191.5,28226.2,52.74,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30)
-2026-11-04,noche,compra,1.7,28296.7,28319.0,33.88,,,,caja de las 22:45 del 3
-2026-11-04,noche,compra,1.7,28293.1,28318.7,38.90,,,,caja de las 22:45 del 3
-2026-11-04,apertura,compra,0.1,28697.5,28276.9,-37.35,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts)
-2026-11-04,apertura,compra,0.1,28691.9,28273.1,-37.20,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts)
-2026-11-04,apertura,compra,1.7,28404.3,28421.3,25.67,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)
-2026-11-04,apertura,compra,1.7,28406.1,28429.8,35.79,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30)
-2026-11-04,apertura,compra,0.5,28696.9,28808.3,49.54,,,,
-2026-11-04,apertura,compra,0.5,28754.9,28759.0,1.82,,,,
-2026-11-09,apertura,compra,0.5,27387.7,27412.2,10.94,,,,cerrada a las 16:36 (antes del cierre de la vela de las 16:30)
-2026-11-09,apertura,compra,0.5,27394.5,27443.3,21.80,,,,cerrada a las 16:36 (antes del cierre de la vela de las 16:30)
-2026-11-09,apertura,compra,0.5,27588.4,27726.0,61.46,,,,
-2026-11-09,apertura,compra,0.5,27605.6,27745.5,62.49,,,,
-2026-11-11,noche,compra,0.5,27983.7,28003.7,8.96,,,,caja de las 22:45 del 10
-2026-11-11,noche,compra,0.5,27975.7,28002.5,12.00,,,,caja de las 22:45 del 10
-2026-11-11,noche,compra,0.5,27974.7,28000.0,11.33,,,,caja de las 22:45 del 10
-2026-11-12,apertura,compra,0.5,28255.3,28325.3,31.64,,,,
-2026-11-12,apertura,compra,0.5,28265.8,28336.9,32.15,,,,
-2026-11-13,noche,compra,0.5,28393.2,28473.4,36.28,,,,caja de las 22:45 del 12
-2026-11-13,noche,compra,0.5,28389.0,28480.0,41.17,,,,caja de las 22:45 del 12
+fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,nota,prueba
+2026-10-12,apertura,venta,0.5+0.3+0.3,,,58.84,3,,,3 ventas (la 1.ª antes de la confirmación); sin desglose por operación,
+2026-10-13,apertura,venta,0.3+0.3,,,-57.00,2,0,2,2 ventas antes de la confirmación (la regla decía compra),
+2026-10-14,noche,compra,0.5,30588.6,30650.0,27.40,,,,,
+2026-10-14,apertura,compra,0.5,30437.3,30003.9,-194.98,,,,vela equivocada (14:30) y sin stop,
+2026-10-15,noche,venta,0.8,29869.0,29807.3,44.21,,,,,
+2026-10-15,apertura,venta,0.5,29559.9,29527.7,14.36,,,,antes de la confirmación,
+2026-10-15,apertura,venta,0.5,29525.6,29517.3,3.70,,,,antes de la confirmación,
+2026-10-15,apertura,compra,0.5,29630.3,29718.1,39.20,,,,,
+2026-10-15,apertura,compra,0.5,29634.3,29716.9,36.88,,,,,
+2026-10-16,noche,venta,0.3,29897.5,29762.0,36.26,,,,,
+2026-10-16,noche,venta,0.3,29898.0,29868.3,7.91,,,,,
+2026-10-16,apertura,venta,0.2,29688.3,29681.0,1.30,,,,,
+2026-10-16,apertura,venta,0.2,29738.3,29650.8,15.55,,,,,
+2026-10-16,apertura,venta,0.2,29723.1,29651.0,12.81,,,,,
+2026-10-19,noche,compra,0.2,29333.4,29524.6,34.05,,,,,
+2026-10-19,noche,compra,0.2,29329.9,29573.7,43.42,,,,,
+2026-10-19,apertura,compra,0.5,29507.1,29578.0,31.61,,,,,
+2026-10-19,apertura,compra,0.5,29586.9,29661.6,33.30,,,,,
+2026-10-19,apertura,compra,0.5,29588.1,29663.2,33.48,,,,,
+2026-10-19,apertura,compra,0.1,29586.2,29664.0,6.94,,,,,
+2026-10-19,apertura,compra,0.1,29588.2,29670.5,7.34,,,,,
+2026-10-20,noche,venta,0.1,29525.9,29424.2,9.06,,,,,
+2026-10-20,noche,venta,0.1,29525.8,29427.2,8.78,,,,,
+2026-10-20,apertura,venta,0.1,29216.9,29772.1,-49.43,,,,antes de la confirmación y sin stop,
+2026-10-20,apertura,venta,0.1,29231.9,29771.7,-48.06,,,,antes de la confirmación y sin stop,
+2026-10-21,noche,compra,0.1,29787.9,29566.2,-19.77,,,,sin stop,
+2026-10-21,noche,compra,0.1,29788.7,29567.9,-19.69,,,,sin stop,
+2026-10-21,apertura,compra,0.1,29716.6,29863.4,13.08,,,,,
+2026-10-21,apertura,compra,0.1,29722.8,29869.1,13.04,,,,,
+2026-10-22,noche,venta,0.1,29730.7,29494.3,21.03,,,,,
+2026-10-22,apertura,compra,0.1,29391.3,29306.1,-7.61,,,,,
+2026-10-22,apertura,venta,0.1,29261.4,29092.0,15.12,,,,,
+2026-10-22,apertura,venta,0.1,29255.7,29095.0,14.34,,,,,
+2026-10-23,apertura,compra,0.1,28984.1,29062.8,7.03,,,,,
+2026-10-23,apertura,compra,0.1,28979.8,29063.9,7.51,,,,,
+2026-10-26,noche,compra,0.5,29087.1,29138.4,22.86,,,,abierta el viernes y cerrada el lunes (fin de semana),
+2026-10-26,noche,compra,0.2,29084.7,29139.4,9.75,,,,abierta el viernes y cerrada el lunes (fin de semana),
+2026-10-26,apertura,venta,0.5,29048.2,29324.1,-123.40,,,,hora equivocada por el cambio de horario y sin stop,
+2026-10-26,apertura,venta,0.5,29044.4,29329.4,-127.47,,,,hora equivocada por el cambio de horario y sin stop,
+2026-10-27,noche,venta,0.5,29265.6,29204.3,27.45,,,,,
+2026-10-27,noche,venta,0.5,29257.2,29186.2,31.80,,,,,
+2026-10-27,apertura,compra,0.5,29444.5,29531.5,39.02,,,,,
+2026-10-27,apertura,compra,0.5,29443.6,29532.6,39.92,,,,,
+2026-10-29,noche,venta,0.5,29674.9,29606.6,30.62,,,,caja de las 22:45 del 28; cerrada el 28/10 a las 23:38,
+2026-10-29,noche,venta,0.5,29676.5,29606.6,31.33,,,,caja de las 22:45 del 28; cerrada el 28/10 a las 23:38,
+2026-10-29,noche,venta,0.5,29575.6,29506.7,30.90,,,,,
+2026-10-29,noche,venta,0.5,29572.8,29503.9,30.90,,,,,
+2026-10-29,noche,venta,0.5,29519.8,29451.8,30.51,,,,,
+2026-10-29,noche,venta,0.5,29512.6,29443.6,30.96,,,,,
+2026-10-29,apertura,venta,5,29388.5,29370.8,79.55,,,,lote de 5,
+2026-10-29,apertura,venta,5,29383.5,29367.0,74.16,,,,lote de 5,
+2026-10-29,apertura,venta,1,29374.1,29332.4,37.47,,,,,
+2026-10-29,apertura,venta,1,29344.9,29295.5,44.39,,,,,
+2026-10-30,noche,venta,0.5,29317.1,29245.7,31.98,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01,
+2026-10-30,noche,venta,0.5,29318.4,29245.7,32.56,,,,caja de las 22:45 del 29; cerrada el 29/10 a las 23:01,
+2026-10-30,noche,venta,0.1,28949.7,28722.7,20.26,,,,,
+2026-10-30,noche,venta,0.1,28946.1,28708.9,21.16,,,,,
+2026-11-02,apertura,compra,0.5,28651.9,28709.4,25.65,,,,,
+2026-11-02,apertura,compra,0.3,28658.1,28686.0,7.47,,,,,
+2026-11-03,noche,compra,1.4,28058.1,28106.1,60.08,,,,caja de las 22:45 del 2,
+2026-11-03,noche,compra,1.4,28093.5,28138.1,55.81,,,,caja de las 22:45 del 2,
+2026-11-03,apertura,compra,1.7,28181.9,28225.2,65.81,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30),
+2026-11-03,apertura,compra,1.7,28191.5,28226.2,52.74,,,,cerrada a las 16:43 (antes del cierre de la vela de las 16:30),
+2026-11-04,noche,compra,1.7,28296.7,28319.0,33.88,,,,caja de las 22:45 del 3,
+2026-11-04,noche,compra,1.7,28293.1,28318.7,38.90,,,,caja de las 22:45 del 3,
+2026-11-04,apertura,compra,0.1,28697.5,28276.9,-37.35,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts),
+2026-11-04,apertura,compra,0.1,28691.9,28273.1,-37.20,,,,abierta a ~28.690 (nivel del 2/11) y cerrada el 4/11 a las 16:00 sin stop (~-420 pts),
+2026-11-04,apertura,compra,1.7,28404.3,28421.3,25.67,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30),
+2026-11-04,apertura,compra,1.7,28406.1,28429.8,35.79,,,,cerrada a las 16:37 (antes del cierre de la vela de las 16:30),
+2026-11-04,apertura,compra,0.5,28696.9,28808.3,49.54,,,,,
+2026-11-04,apertura,compra,0.5,28754.9,28759.0,1.82,,,,,
+2026-11-09,apertura,compra,0.5,27387.7,27412.2,10.94,,,,cerrada a las 16:36 (antes del cierre de la vela de las 16:30),
+2026-11-09,apertura,compra,0.5,27394.5,27443.3,21.80,,,,cerrada a las 16:36 (antes del cierre de la vela de las 16:30),
+2026-11-09,apertura,compra,0.5,27588.4,27726.0,61.46,,,,,
+2026-11-09,apertura,compra,0.5,27605.6,27745.5,62.49,,,,,
+2026-11-11,noche,compra,0.5,27983.7,28003.7,8.96,,,,caja de las 22:45 del 10,
+2026-11-11,noche,compra,0.5,27975.7,28002.5,12.00,,,,caja de las 22:45 del 10,
+2026-11-11,noche,compra,0.5,27974.7,28000.0,11.33,,,,caja de las 22:45 del 10,
+2026-11-12,apertura,compra,0.5,28255.3,28325.3,31.64,,,,,
+2026-11-12,apertura,compra,0.5,28265.8,28336.9,32.15,,,,,
+2026-11-13,noche,compra,0.5,28393.2,28473.4,36.28,,,,caja de las 22:45 del 12,
+2026-11-13,noche,compra,0.5,28389.0,28480.0,41.17,,,,caja de las 22:45 del 12,
+2026-11-17,apertura,venta,0.3,27153.2,27075.1,21.31,,,,cerrada a las 17:10 (~+78 pts); cuenta nueva de 200 €,2.0
+2026-11-17,apertura,venta,0.3,27148.7,27067.4,22.19,,,,cerrada a las 17:10 (~+81 pts),2.0

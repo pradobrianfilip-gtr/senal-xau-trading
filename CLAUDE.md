@@ -40,6 +40,11 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-17 — **Prueba 2.0 de la caja** (el usuario: "comenzamos con la prueba 2.0 con lotes 0.5 y siguiendo
+  las reglas"): operar con los avisos del bot (regla del PR #40, sin stop, TP 70 pts) en una **cuenta demo
+  nueva de 200 €**. Sus operaciones van en `operaciones_ustec.csv` con la columna **`prueba` = `2.0`** (vacía =
+  prueba 1, cerrada el 13/11 con +1.356,52 € en 85 operaciones); `!USTEC` muestra la 2.0 día a día y la 1
+  solo con su total — decisión del usuario.
 - 2026-11-17 — **Cajas sin stop** (`CAJA_CON_STOP = False`, el usuario: "quita el stop loss"): los avisos ya no
   llevan stop; la operación sale en el **TP de 70 pts** o en el **cierre forzado** (📦 23:00 de su gráfico, 🌙
   15:00 de su gráfico), y el aviso lo dice. `!caja_test` muestra "sin stop" (la regla) y, para comparar,
@@ -160,7 +165,7 @@ Formato: `AAAA-MM-DD — decisión — motivo`.
   día ("Oct21/26: 4 operaciones -- profit 2 · loss 2 · 50 % · −13,34 € (acumulado 76 %)") y el
   total (operaciones, profit/loss, % de acierto, días positivos/negativos, resultado y media por
   día, y desglose apertura/noche). Los datos están en **`operaciones_ustec.csv`** (una fila por
-  operación; un grupo sin desglose lleva `operaciones` > 1). **Claude añade ahí cada operación que
+  operación; un grupo sin desglose lleva `operaciones` > 1; columna `prueba`: vacía = prueba 1, `2.0` = prueba 2.0). **Claude añade ahí cada operación que
   el usuario manda** (además de anotarla abajo, en "Pendiente"); el bot lee el archivo de `main`
   en GitHub (repo público), así que se actualiza al aceptar el PR **sin redeploy**; si GitHub no
   responde, usa la copia del despliegue — decisión del usuario.
@@ -398,6 +403,16 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     Acumulado 🌙 hasta el 13/11: **+874,11 €** (14 de 15 noches ganadoras).
 
+- **Prueba 2.0 de la caja** (desde el 2026-11-17, con los avisos del bot; cuenta demo nueva: depósito de
+  **200 €** el 17/11 a las 15:29):
+
+  | Fecha | Caja | Operaciones | Resultado |
+  |---|---|---|---|
+  | 2026-11-17 | 📦 venta | **2 ventas de 0,3** (no 0,5) en 27.153,2 / 27.148,7 → 27.075,1 / 27.067,4, cerradas a las 17:10 (~+78 y +81 pts) | ✅ **+43,50 €** (+21,31 y +22,19) |
+
+  Acumulado 2.0: **+43,50 €** en 2 operaciones; cuenta 200 € → 243,50 €. (Tras su cierre la vela de las
+  17:30 siguió cayendo ~500 pts.)
+
 ## Arquitectura
 
 Un solo archivo: `senal_trading_xauusd.py` (bot de Discord con `discord.py`, bucle cada
@@ -506,6 +521,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-17 — Prueba 2.0 de la caja: columna `prueba` en `operaciones_ustec.csv` y `!USTEC` con la 2.0 aparte.
 - 2026-11-17 — Cajas sin stop: salida en el TP de 70 pts o en el cierre forzado.
 - 2026-11-17 — Cajas: si la 1.ª vela (16:30 / 01:00) no confirma con el doble, se entra dentro de la siguiente (16:45 / 01:15) en cuanto una vela M5 sale de la caja.
 - 2026-11-16 — Caja 🌙: un solo aviso a la 01:15 con la vela de la 01:00 (reapertura).

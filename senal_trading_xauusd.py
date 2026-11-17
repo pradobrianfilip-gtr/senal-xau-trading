@@ -2280,22 +2280,17 @@ def _eur(x):
     return f"{x:+.2f} €".replace(".", ",")
 
 
-def generar_reporte_ustec():
-    """Embed del comando !USTEC: una linea por dia con el acumulado y el total."""
-    try:
-        filas, fuente = _leer_operaciones_ustec()
-    except Exception as e:
-        return discord.Embed(title="📈 USTEC -- sin registro",
-                             description=f"No se pudo leer el registro de operaciones: {_sin_secretos(e)}",
-                             color=0xE24B4A)
+def _lineas_ustec(filas, detalle=True):
+    """Lineas del informe !USTEC para un grupo de filas (una prueba)."""
     dias, partes = resumen_operaciones_ustec(filas)
     if not dias:
-        return discord.Embed(title="📈 USTEC -- sin operaciones",
-                             description="Todavia no hay operaciones apuntadas.", color=COLOR_USTEC)
+        return ["Todavía no hay operaciones apuntadas."]
     lineas, acum = [], {"n": 0, "g": 0, "p": 0, "eur": 0.0}
     for fecha, d in dias.items():
         for k in acum:
             acum[k] += d[k]
+        if not detalle:
+            continue
         sin = d["n"] - d["g"] - d["p"]
         icono = "✅" if d["eur"] > 0 else "❌" if d["eur"] < 0 else "➖"
         lineas.append(
@@ -2306,7 +2301,7 @@ def generar_reporte_ustec():
     dias_neg = sum(1 for d in dias.values() if d["eur"] < 0)
     sin_total = acum["n"] - acum["g"] - acum["p"]
     lineas += [
-        "",
+        "" if detalle else None,
         f"**Total hasta {_fecha_corta(list(dias)[-1])}:** {acum['n']} operaciones -- "
         f"profit **{acum['g']}** · loss **{acum['p']}**"
         + (f" · sin desglose {sin_total}" if sin_total else ""),
@@ -2319,7 +2314,33 @@ def generar_reporte_ustec():
     for clave, d in sorted(partes.items()):
         lineas.append(f"{nombres.get(clave, clave)}: {d['n']} ops -- profit {d['g']} · loss {d['p']} · "
                       f"{_pct(d['g'], d['p'])} · {_eur(d['eur'])}")
-    embed = discord.Embed(title="📈 USTEC -- tus operaciones del Nasdaq", description="\n".join(lineas),
+    return [l for l in lineas if l is not None]
+
+
+def generar_reporte_ustec():
+    """Embed del comando !USTEC. Desde el 2026-11-17 hay dos pruebas (columna
+    'prueba': vacia = prueba 1, '2.0' = prueba 2.0 con los avisos del bot y 0,5
+    lotes): la 2.0 sale dia a dia y la 1 solo con su total."""
+    try:
+        filas, fuente = _leer_operaciones_ustec()
+    except Exception as e:
+        return discord.Embed(title="📈 USTEC -- sin registro",
+                             description=f"No se pudo leer el registro de operaciones: {_sin_secretos(e)}",
+                             color=0xE24B4A)
+    p2 = [f for f in filas if (f.get("prueba") or "").strip() == "2.0"]
+    p1 = [f for f in filas if (f.get("prueba") or "").strip() != "2.0"]
+    if not p1 and not p2:
+        return discord.Embed(title="📈 USTEC -- sin operaciones",
+                             description="Todavia no hay operaciones apuntadas.", color=COLOR_USTEC)
+    lineas = []
+    if p2:
+        lineas += ["🆕 **PRUEBA 2.0** (avisos del bot, desde el 17/11)"] + _lineas_ustec(p2)
+    if p1:
+        if p2:
+            lineas += ["", "📁 **PRUEBA 1** (12/10 → 13/11, cerrada)"] + _lineas_ustec(p1, detalle=False)
+        else:
+            lineas += _lineas_ustec(p1)
+    embed = discord.Embed(title="📈 USTEC -- tus operaciones del Nasdaq", description="\n".join(lineas)[:4096],
                           color=COLOR_USTEC)
     embed.set_footer(text=f"Registro: {fuente} · Hora Madrid: {hora_madrid()}")
     return embed

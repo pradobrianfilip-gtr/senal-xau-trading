@@ -2374,9 +2374,10 @@ def _velas_nq_yahoo(rango="60d", minutos=15):
     return velas
 
 
-def _caja_ruptura(v, caja):
-    """+1 / -1 si la vela cierra fuera de la caja y mide >= 2x la vela de la caja; 0 si no."""
-    if v["h"] - v["l"] < CAJA_CUERPO_MULT * (caja["h"] - caja["l"]):
+def _caja_ruptura(v, caja, doble=True):
+    """+1 / -1 si la vela cierra fuera de la caja (y, con doble, mide >= 2x la vela de
+    la caja); 0 si no."""
+    if doble and v["h"] - v["l"] < CAJA_CUERPO_MULT * (caja["h"] - caja["l"]):
         return 0
     return 1 if v["c"] > caja["h"] else -1 if v["c"] < caja["l"] else 0
 
@@ -2428,26 +2429,28 @@ def caja_simular(velas, m5=None):
         t = v["t"]
         minuto = t.hour * 60 + t.minute
         if minuto == 8 * 60:
-            cajas["apertura"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False}
+            cajas["apertura"] = {"h": v["h"], "l": v["l"], "vela": t.replace(hour=9, minute=30)}
             continue
         if minuto == 15 * 60 + 45:
-            cajas["noche"] = {"fecha": t.date(), "h": v["h"], "l": v["l"], "usada": False,
-                              "vela": _caja_noche_vela(t)}
+            cajas["noche"] = {"h": v["h"], "l": v["l"], "vela": _caja_noche_vela(t)}
             continue
-        if ((caja := cajas.get("apertura")) and not caja["usada"] and caja["fecha"] == t.date()
-                and minuto == 9 * 60 + 30):
-            estrategia = "apertura"
-            limite = t.replace(hour=16, minute=0)
-        elif (caja := cajas.get("noche")) and not caja["usada"] and t == caja["vela"]:
-            estrategia = "noche"
-            limite = (t + timedelta(days=1)).replace(hour=8, minute=0)
+        for estrategia, caja in cajas.items():
+            if t in (caja["vela"], caja["vela"] + timedelta(minutes=15)):
+                break
         else:
             continue
-        d = _caja_ruptura(v, caja)
+        # 1.a vela (16:30 / 01:00): cierra fuera y mide el doble; si no, la siguiente
+        # (16:45 / 01:15) confirma con solo cerrar fuera de la caja.
+        primera = t == caja["vela"]
+        d = _caja_ruptura(v, caja, doble=primera)
+        if not d and primera:
+            continue
+        del cajas[estrategia]
         if not d:
             continue
-        caja["usada"] = True
-        op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"],
+        limite = (t.replace(hour=16, minute=0) if estrategia == "apertura"
+                  else (t + timedelta(days=1)).replace(hour=8, minute=0))
+        op = {"estrategia": estrategia, "dir": d, "t": t, "entrada": v["c"], "segunda": not primera,
               "caja_h": caja["h"], "caja_l": caja["l"], "res": {}}
         stops = {"0,2 %": v["c"] * (1 - d * CAJA_SL_PCT / 100),
                  "caja": caja["l"] if d > 0 else caja["h"],
@@ -2662,14 +2665,45 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango):
     sl_pts = v["c"] * CAJA_SL_PCT / 100
     _caja_avisar(estado, "entrada", _caja_fin(v), ahora, f"{icono}{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
                  f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
-                 f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
+                 + (f"➖ La vela de las {_caja_hora_grafico(v['t'] - timedelta(minutes=15))} no confirmó\n"
+                    if op.get("segunda") else "")
+                 + f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
                  f"{'por encima' if d > 0 else 'por debajo'} de la caja\n"
-                 f"✅ **Doble:** mide {v['h'] - v['l']:.0f} pts, más del doble que la de las {nombre_caja}\n\n"
+                 + ("" if op.get("segunda") else
+                    f"✅ **Doble:** mide {v['h'] - v['l']:.0f} pts, más del doble que la de las {nombre_caja}\n")
+                 + "\n"
                  f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(_caja_fin(v))} de tu gráfico)\n"
                  f"🎯 TP: **{'+' if d > 0 else '-'}{CAJA_TP_PUNTOS} pts** desde tu entrada "
                  f"(≈ {_caja_eur(CAJA_TP_PUNTOS)} con {str(CAJA_LOTE).replace('.', ',')} lotes)\n"
                  f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {_caja_eur(-sl_pts)})",
                  color=0x2ECC71 if d > 0 else 0xE74C3C)
+
+
+def _caja_decidir(estado, ahora, icono, cabecera, nombre_caja, caja, v1, v2, que_no):
+    """Decide la entrada: la 1.a vela (16:30 / 01:00) si cierra fuera y mide el doble; si
+    no, avisa y espera a la 2.a (16:45 / 01:15), que confirma con solo cerrar fuera de la
+    caja, en su sentido. Devuelve la operacion o None."""
+    if estado["op"] is not None or v1 is None:
+        return estado["op"]
+    rango, h1, h2 = caja["h"] - caja["l"], _caja_hora_grafico(v1["t"]), _caja_hora_grafico(_caja_fin(v1))
+    if d := _caja_ruptura(v1, caja):
+        estado["op"] = {"dir": d, "vela": v1}
+        return estado["op"]
+    _caja_avisar(estado, "espera", _caja_fin(v1), ahora, f"{icono}⏳ USTEC -- la vela de las {h1} no confirma",
+                 f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
+                 f"➖ La vela de las {h1} ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble de tamaño.\n"
+                 f"⏳ Espero a la de las **{h2}**: si cierra fuera de la caja, entro en su sentido "
+                 f"(aviso a las {_caja_hora_grafico(_caja_fin(v1) + timedelta(minutes=15))} de tu gráfico).")
+    if v2 is None:
+        return None
+    if d := _caja_ruptura(v2, caja, doble=False):
+        estado["op"] = {"dir": d, "vela": v2, "segunda": True}
+        return estado["op"]
+    _caja_avisar(estado, "fin", _caja_fin(v2), ahora, f"{icono}➖ USTEC -- {que_no}",
+                 f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
+                 f"Ni la vela de las {h1} rompió con el doble ni la de las {h2} cerró fuera de la caja. "
+                 f"**No se opera.**", color=0x95A5A6)
+    return None
 
 
 def _caja_seguir(estado, ahora, icono, velas, op, limite, texto_cierre):
@@ -2736,24 +2770,16 @@ def revisar_caja_apertura(ahora=None):
         print(f"Caja USTEC: sin velas del NQ ({_sin_secretos(e)})")
         return
     por_minuto = {v["t"].hour * 60 + v["t"].minute: v for v in velas}
-    caja_v, v1 = por_minuto.get(8 * 60), por_minuto.get(9 * 60 + 30)
+    caja_v = por_minuto.get(8 * 60)
+    v1, v2 = por_minuto.get(9 * 60 + 30), por_minuto.get(9 * 60 + 45)
     if caja_v is None:
         return
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
     rango = caja["h"] - caja["l"]
     dia = f"{DIAS_SEMANA[ahora.weekday()]} {ahora.strftime('%d/%m')}"
     _caja_aviso_caja(estado, ahora, "📦", dia, "15:00", rango,
-                     "Miro la vela de las **16:30**: aviso a las **16:45** de tu gráfico")
-    if estado["op"] is None and v1 is not None:
-        d = _caja_ruptura(v1, caja)
-        if not d:
-            _caja_avisar(estado, "fin", _caja_fin(v1), ahora, "📦➖ USTEC -- hoy no hay entrada",
-                         f"**{dia}** · caja de las 15:00: {rango:.0f} pts\n"
-                         f"La vela de las 16:30 ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble "
-                         f"de tamaño. **Hoy no se opera la apertura.**", color=0x95A5A6)
-            return
-        estado["op"] = {"dir": d, "vela": v1}
-    if estado["op"] is None:
+                     "Miro la vela de las **16:30** (aviso a las **16:45**) y, si no confirma, la de las 16:45")
+    if _caja_decidir(estado, ahora, "📦", dia, "15:00", caja, v1, v2, "hoy no hay entrada") is None:
         return
     _caja_aviso_entrada(estado, ahora, "📦", dia, estado["op"], "15:00", rango)
     _caja_seguir(estado, ahora, "📦", velas, estado["op"], ahora.replace(hour=16, minute=0, second=0, microsecond=0),
@@ -2798,19 +2824,12 @@ def revisar_caja_noche(ahora=None):
         cabecera += " (caja del viernes)"
     if ahora < t_vela + timedelta(minutes=15):
         _caja_aviso_caja(estado, ahora, "🌙", cabecera, "22:45", caja["h"] - caja["l"],
-                         "Miro la vela de la **01:00** (reapertura): aviso a la **01:15** de tu gráfico")
+                         "Miro la vela de la **01:00** (reapertura; aviso a la **01:15**) y, si no confirma, la de la 01:15")
     if estado["op"] is None:
         v1 = next((v for v in velas if v["t"] == t_vela), None)
-        if v1 is None:
+        v2 = next((v for v in velas if v["t"] == t_vela + timedelta(minutes=15)), None)
+        if _caja_decidir(estado, ahora, "🌙", cabecera, "22:45", caja, v1, v2, "esta noche no hay entrada") is None:
             return
-        d = _caja_ruptura(v1, caja)
-        if not d:
-            _caja_avisar(estado, "fin", _caja_fin(v1), ahora, "🌙➖ USTEC -- esta noche no hay entrada",
-                         f"**{cabecera}** · caja de las 22:45: {caja['h'] - caja['l']:.0f} pts\n"
-                         f"La vela de la 01:00 ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble "
-                         f"de tamaño. **Esta noche no se opera.**", color=0x95A5A6)
-            return
-        estado["op"] = {"dir": d, "vela": v1}
     op = estado["op"]
     _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"])
     limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)

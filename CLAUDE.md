@@ -40,6 +40,11 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-18 — **Lote de la prueba 2.0 según la cuenta**: **0,3 lotes** (día y noche) mientras la cuenta de
+  200 € no se triplique; al llegar a **600 €**, **0,5 lotes**. El saldo lo calcula el bot (`_caja_lote`: 200 € +
+  las filas `prueba = 2.0` de `operaciones_ustec.csv`, leído de GitHub cada 10 min) y el aviso de entrada dice
+  el lote, los € del TP y la cuenta. Claude lleva las cuentas y avisa al usuario cuando toque el cambio. El
+  usuario: "conforme tripliquemos los 200 € … tú sabes en qué momento cambiamos a 0,5" — decisión del usuario.
 - 2026-11-18 — **Caja 🌙: si la vela de la 01:45 no confirma, se entra en el SENTIDO de la vela de las 02:00**
   (la que abre a las 02:00 de su gráfico; verde → BUY, roja → SELL; aviso a las **02:15**, al cerrar), aunque el
   precio ya esté fuera de la caja. Sustituye, solo en la 🌙, la 2.ª oportunidad "en cuanto salga de la caja"
@@ -537,6 +542,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
 - 2026-11-18 — Caja 🌙: si la vela de la 01:45 no confirma, entrada en el sentido de la vela de las 02:00 (aviso 02:15).
 - 2026-11-18 — Caja 🌙: confirma la vela de la 01:45 de su gráfico (8.ª tras la caja; aviso 02:00–02:05) y, si no, dentro de la de las 02:00.
+- 2026-11-18 — Prueba 2.0: lote 0,3 hasta que la cuenta llegue a 600 € y luego 0,5 (`_caja_lote`, en el aviso).
 - 2026-11-18 — Prueba 2.0 reiniciada desde cero (quitadas las operaciones del 17/11).
 - 2026-11-17 — Prueba 2.0 de la caja: columna `prueba` en `operaciones_ustec.csv` y `!USTEC` con la 2.0 aparte.
 - 2026-11-17 — Cajas sin stop: salida en el TP de 70 pts o en el cierre forzado.

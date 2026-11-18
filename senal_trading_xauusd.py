@@ -2372,7 +2372,14 @@ URL_YAHOO_NQ = "https://query1.finance.yahoo.com/v8/finance/chart/NQ=F"
 CAJA_TP_PUNTOS = 70
 CAJA_SL_PCT = 0.2
 CAJA_CUERPO_MULT = 2.0
-CAJA_LOTE = 0.5
+CAJA_LOTE = 0.5  # lote "grande" de la prueba 2.0 (ver _caja_lote)
+# Prueba 2.0 (2026-11-18, el usuario): cuenta de 200 €; se entra con 0,3 lotes hasta
+# triplicarla (600 €) y desde ahi con 0,5. El saldo = 200 € + las operaciones de la
+# prueba 2.0 de operaciones_ustec.csv (las apunta Claude).
+CAJA_LOTE_INICIAL = 0.3
+CAJA_CUENTA_INICIAL = 200.0
+CAJA_CUENTA_CAMBIO = 600.0
+_caja_lote_cache = {"t": None, "lote": CAJA_LOTE_INICIAL, "saldo": CAJA_CUENTA_INICIAL}
 CAJA_EUR_PUNTO_LOTE = 0.89  # USTEC en la cuenta del usuario: ~0,89 € por punto y lote
 CAJA_HORAS_GRAFICO_SOBRE_NY = 7
 CAJA_CON_STOP = False  # decision del usuario (2026-11-17): sin stop; sale en el TP o en el cierre forzado
@@ -2621,7 +2628,7 @@ def generar_reporte_caja():
                       f"tú: {'/'.join(sorted(tuya['lados']))} {_eur(tuya['eur'])}")
     lineas.sort(key=lambda x: (_orden_fecha(x), x))
 
-    resumen = [f"TP {CAJA_TP_PUNTOS} pts; € con {str(CAJA_LOTE).replace('.', ',')} lotes. **Sin stop** (la regla: "
+    resumen = [f"TP {CAJA_TP_PUNTOS} pts; € con {_lote_txt(_caja_lote()[0])} lotes. **Sin stop** (la regla: "
                "sale en el TP o en el cierre forzado) y, para comparar, con stop de **0,2 %** y al otro lado de la "
                "**caja**."]
     for estrategia in ("apertura", "noche"):
@@ -2641,7 +2648,7 @@ def generar_reporte_caja():
                 f"  {nombre}" + (f" (≈{sum(riesgo) / len(riesgo):.0f} pts)" if riesgo else "") + ": "
                 f"TP {sum(r['motivo'] == 'TP' for r in res)} · SL {sum(r['motivo'] == 'SL' for r in res)} · "
                 f"cierre {sum(r['motivo'] == 'CIERRE' for r in res)} · acierto {g / len(res) * 100:.0f} % · "
-                f"{pts:+.0f} pts ≈ **{_eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)}**")
+                f"{pts:+.0f} pts ≈ **{_caja_eur(pts)}**")
     resumen += [
         "",
         f"**Comparado con tus operaciones:** {coinciden} días en la misma dirección, {contrarias} en la "
@@ -2701,8 +2708,30 @@ def _caja_inicio_m15(t):
     return t - timedelta(minutes=t.minute % 15)
 
 
+def _caja_lote():
+    """(lote, saldo) de la prueba 2.0: 0,3 lotes hasta que la cuenta llegue a 600 €, luego
+    0,5. Lee el registro como mucho cada 10 min; si falla, usa el ultimo valor."""
+    c = _caja_lote_cache
+    ahora = datetime.now(NUEVA_YORK_TZ)
+    if c["t"] is None or ahora - c["t"] > timedelta(minutes=10):
+        c["t"] = ahora
+        try:
+            filas, _ = _leer_operaciones_ustec()
+            saldo = CAJA_CUENTA_INICIAL + sum(_num(f.get("eur"), 0) or 0 for f in filas
+                                              if (f.get("prueba") or "").strip() == "2.0")
+            c["saldo"] = saldo
+            c["lote"] = CAJA_LOTE if saldo >= CAJA_CUENTA_CAMBIO else CAJA_LOTE_INICIAL
+        except Exception as e:
+            print(f"Caja USTEC: no se pudo calcular el lote ({_sin_secretos(e)})")
+    return c["lote"], c["saldo"]
+
+
+def _lote_txt(lote):
+    return str(lote).replace(".", ",")
+
+
 def _caja_eur(pts):
-    return _eur(pts * CAJA_EUR_PUNTO_LOTE * CAJA_LOTE)
+    return _eur(pts * CAJA_EUR_PUNTO_LOTE * _caja_lote()[0])
 
 
 def _caja_aviso_caja(estado, ahora, icono, cabecera, nombre_caja, rango, h1, h2, h3_color=None):
@@ -2741,7 +2770,10 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, 
                  + "\n"
                  f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(_caja_fin(v))} de tu gráfico)\n"
                  f"🎯 TP: **{'+' if d > 0 else '-'}{CAJA_TP_PUNTOS} pts** desde tu entrada "
-                 f"(≈ {_caja_eur(CAJA_TP_PUNTOS)} con {str(CAJA_LOTE).replace('.', ',')} lotes)\n"
+                 f"(≈ {_caja_eur(CAJA_TP_PUNTOS)} con **{_lote_txt(_caja_lote()[0])} lotes**)\n"
+                 f"💰 Cuenta ≈ {_caja_lote()[1]:.0f} €"
+                 + (f" · lote {_lote_txt(CAJA_LOTE_INICIAL)} hasta llegar a {CAJA_CUENTA_CAMBIO:.0f} €, luego "
+                    f"{_lote_txt(CAJA_LOTE)}\n" if _caja_lote()[0] < CAJA_LOTE else "\n")
                  + (f"🛑 Stop: **{'-' if d > 0 else '+'}{sl_pts:.0f} pts** (0,2 %) (≈ {_caja_eur(-sl_pts)})"
                     if CAJA_CON_STOP else f"Sin stop: si no llega al TP, se cierra {texto_limite}."),
                  color=0x2ECC71 if d > 0 else 0xE74C3C)

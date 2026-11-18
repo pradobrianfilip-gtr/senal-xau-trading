@@ -40,6 +40,14 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-18 — **Caja 🌙: si la vela de la 01:45 no confirma, se entra en el SENTIDO de la vela de las 02:00**
+  (la que abre a las 02:00 de su gráfico; verde → BUY, roja → SELL; aviso a las **02:15**, al cerrar), aunque el
+  precio ya esté fuera de la caja. Sustituye, solo en la 🌙, la 2.ª oportunidad "en cuanto salga de la caja"
+  (M5). El usuario, con 3 ejemplos reales (12/11 BUY, 16/11 y 18/11 SELL): "aquí va ir en sentido de lo que
+  determine la vela de las 2:00". Con la versión anterior el 16/11 y el 18/11 salían BUY y perdían (−300 /
+  −262 pts); con esta, los tres TP. Mes de datos del NQ (20/10–18/11, sin stop, TP 70): 21 noches, 16 TP y 5
+  cierres a las 15:00 en pérdida (−90 a −241 pts) → ≈ +336 pts. La 📦 sigue con la M5 que sale de la caja
+  (pendiente de que el usuario diga si cambia igual) — decisión del usuario.
 - 2026-11-18 — **La caja 🌙 se confirma con la 8.ª vela tras la caja: la de la 01:45 de su gráfico** (18:45 NY,
   cierra a las 02:00; aviso hacia las **02:00–02:05**). Si no cierra fuera con el doble, 2.ª oportunidad
   dentro de la vela de las **02:00** (primera M5 que sale de la caja; aviso 02:05/02:10). El usuario: "la
@@ -463,7 +471,7 @@ Ese día la vela de las 16:45 subió ~88 pts por encima de la entrada antes de c
 Avisos en vivo de las cajas: `revisar_caja_periodicamente` (cada minuto) → `revisar_caja_apertura()`
 (pide velas al NQ de 09:45 a 10:05 NY y luego cada 5 min si hay operación) y `revisar_caja_noche()` (a las 16:00 NY
 para la caja y a las 19:00 NY para la vela de la 01:45 de su gráfico, `_caja_noche_vela`, y cada 5 min con operación); comparten
-`_caja_decidir` (1.ª vela con el doble o, si no, aviso de espera y entrada con la primera M5 de la 2.ª vela que sale de la caja), `_caja_aviso_entrada` y `_caja_seguir`; estado en memoria (`_caja_vivo`, `_caja_noche`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
+`_caja_decidir` (1.ª vela con el doble o, si no, aviso de espera y entrada con la primera M5 de la 2.ª vela que sale de la caja; en la 🌙, `por_color`: el sentido de la vela de las 02:00, `_caja_color`), `_caja_aviso_entrada` y `_caja_seguir`; estado en memoria (`_caja_vivo`, `_caja_noche`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
 (`CAJA_MAX_RETRASO_MIN`). Si una vela toca stop y TP, mira sus velas M5.
 
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
@@ -528,6 +536,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-18 — Caja 🌙: si la vela de la 01:45 no confirma, entrada en el sentido de la vela de las 02:00 (aviso 02:15).
 - 2026-11-18 — Caja 🌙: confirma la vela de la 01:45 de su gráfico (8.ª tras la caja; aviso 02:00–02:05) y, si no, dentro de la de las 02:00.
 - 2026-11-17 — Prueba 2.0 de la caja: columna `prueba` en `operaciones_ustec.csv` y `!USTEC` con la 2.0 aparte.
 - 2026-11-17 — Cajas sin stop: salida en el TP de 70 pts o en el cierre forzado.

@@ -81,5 +81,3 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-11-12,apertura,compra,0.5,28265.8,28336.9,32.15,,,,,
 2026-11-13,noche,compra,0.5,28393.2,28473.4,36.28,,,,caja de las 22:45 del 12,
 2026-11-13,noche,compra,0.5,28389.0,28480.0,41.17,,,,caja de las 22:45 del 12,
-2026-11-17,apertura,venta,0.3,27153.2,27075.1,21.31,,,,cerrada a las 17:10 (~+78 pts); cuenta nueva de 200 €,2.0
-2026-11-17,apertura,venta,0.3,27148.7,27067.4,22.19,,,,cerrada a las 17:10 (~+81 pts),2.0

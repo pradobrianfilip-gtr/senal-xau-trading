@@ -40,6 +40,12 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-19 — **Caja 📦: la 2.ª oportunidad exige que la vela M5 cierre al menos 5 pts fuera de la caja**
+  (`CAJA_MARGEN_M5 = 5`). El 19/11 la vela de las 16:30 midió el doble pero cerró dentro; la primera M5 de la
+  vela de las 16:45 cerró solo 2,5 pts por encima → BUY, y el Nasdaq cayó ~1.200 pts. Con el margen sale SELL
+  a las 16:55 (M5 de las 16:50) y TP. 50 días del NQ (sin stop, TP 70): sin margen 37 TP / neto +274 pts; con
+  5 pts 36 TP / +1.193 pts (la mejora viene casi toda de ese día). Alternativa B ("sentido de la vela de las
+  16:45", como la 🌙): +675 pts. El usuario eligió la A — decisión del usuario.
 - 2026-11-18 — **Lote de la prueba 2.0 según la cuenta**: **0,3 lotes** (día y noche) mientras la cuenta de
   200 € no se triplique; al llegar a **600 €**, **0,5 lotes**. El saldo lo calcula el bot (`_caja_lote`: 200 € +
   las filas `prueba = 2.0` de `operaciones_ustec.csv`, leído de GitHub cada 10 min) y el aviso de entrada dice
@@ -540,6 +546,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-19 — Caja 📦: la vela M5 de la 2.ª oportunidad tiene que cerrar ≥ 5 pts fuera de la caja (`CAJA_MARGEN_M5`).
 - 2026-11-18 — Caja 🌙: si la vela de la 01:45 no confirma, entrada en el sentido de la vela de las 02:00 (aviso 02:15).
 - 2026-11-18 — Caja 🌙: confirma la vela de la 01:45 de su gráfico (8.ª tras la caja; aviso 02:00–02:05) y, si no, dentro de la de las 02:00.
 - 2026-11-18 — Prueba 2.0: lote 0,3 hasta que la cuenta llegue a 600 € y luego 0,5 (`_caja_lote`, en el aviso).

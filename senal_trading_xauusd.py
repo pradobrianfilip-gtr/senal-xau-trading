@@ -2418,9 +2418,14 @@ def _caja_toca(v, d, sl, tp):
     return toca_sl, ((v["h"] >= tp) if d > 0 else (v["l"] <= tp))
 
 
+CAJA_MARGEN_M5 = 5  # pts: la vela M5 tiene que cerrar al menos esto fuera de la caja (2026-11-19)
+
+
 def _caja_sale_m5(subs, caja):
-    """2.a vela (16:45 / 02:00): la primera vela M5 que cierra fuera de la caja marca el
-    sentido y la entrada, dentro de la misma vela M15. Devuelve (dir, vela M5) o (0, None)."""
+    """2.a vela de la 📦 (16:45): la primera vela M5 que cierra al menos CAJA_MARGEN_M5 pts
+    fuera de la caja marca el sentido y la entrada, dentro de la misma vela M15 (el 19/11
+    una M5 cerro 2,5 pts fuera, dio BUY y cayo 1.200 pts). Devuelve (dir, vela M5) o (0, None)."""
+    caja = {"h": caja["h"] + CAJA_MARGEN_M5, "l": caja["l"] - CAJA_MARGEN_M5}
     for sub in subs:
         if d := _caja_ruptura(sub, caja, doble=False):
             return d, dict(sub, min=5)
@@ -2744,7 +2749,8 @@ def _caja_aviso_caja(estado, ahora, icono, cabecera, nombre_caja, rango, h1, h2,
                  + (f"2️⃣ Si no, entrada en el sentido de la vela de las **{h2}** (verde → BUY, roja → SELL), "
                     f"al cerrar (**{h3_color}**)."
                     if h3_color else
-                    f"2️⃣ Si no, en la vela de las **{h2}** entro en cuanto salga de la caja, en ese sentido."),
+                    f"2️⃣ Si no, en la vela de las **{h2}** entro en cuanto una vela de 5 min "
+                    f"cierre **{CAJA_MARGEN_M5} pts o más fuera** de la caja, en ese sentido."),
                  color=0x95A5A6)
 
 
@@ -2795,7 +2801,8 @@ def _caja_decidir(estado, ahora, icono, cabecera, nombre_caja, caja, v1, v2, que
                  f"➖ La vela de las {h1} ({v1['h'] - v1['l']:.0f} pts) no rompió la caja con el doble de tamaño.\n"
                  + (f"⏳ Miro la vela de las **{h2}**: al cerrar, entra en su sentido (verde → BUY, roja → SELL)."
                     if por_color else
-                    f"⏳ Miro la vela de las **{h2}**: en cuanto salga de la caja, entra en ese sentido "
+                    f"⏳ Miro la vela de las **{h2}**: en cuanto una vela de 5 min cierre {CAJA_MARGEN_M5} pts o más "
+                    f"fuera de la caja, entra en ese sentido "
                     f"(te aviso al momento, con las velas de 5 minutos)."))
     if por_color:  # 🌙: el sentido de la 2.a vela, a su cierre
         if v2 is None:

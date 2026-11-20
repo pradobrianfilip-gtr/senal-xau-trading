@@ -2439,6 +2439,21 @@ def _caja_color(v):
     return (v["c"] > v["o"]) - (v["c"] < v["o"])
 
 
+CAJA_NOCHE_VENTANA = timedelta(hours=3, minutes=15)  # de la vela de la 01:45 a las 05:00 de su grafico
+CAJA_DECISIVA_MULT = 1.0  # la vela decisiva mide al menos 1x la vela de la caja
+
+
+def _caja_decisiva(v, caja):
+    """🌙 (2026-11-20, el usuario: "espero a que rompa alguna y cumpla con el potencial de la
+    vela"): +1 si la vela es verde y cierra por encima de la caja, -1 si es roja y cierra por
+    debajo, y en los dos casos mide (max - min) al menos CAJA_DECISIVA_MULT x la vela de la
+    caja; 0 si no (dentro de la caja, color contrario al lado o vela pequena)."""
+    if v["h"] - v["l"] < CAJA_DECISIVA_MULT * (caja["h"] - caja["l"]):
+        return 0
+    c = _caja_color(v)
+    return c if (c > 0 and v["c"] > caja["h"]) or (c < 0 and v["c"] < caja["l"]) else 0
+
+
 def _caja_salida(velas, i, d, limite, sl, m5=None, entrada=None):
     """Sigue la operacion abierta al cierre de la vela i: (vela de salida, precio, motivo).
     Si una vela toca stop y TP, mira sus velas M5 (m5: inicio M15 -> velas M5) para
@@ -2486,28 +2501,38 @@ def caja_simular(velas, m5=None):
         if minuto == 15 * 60 + 45:
             cajas["noche"] = {"h": v["h"], "l": v["l"], "vela": _caja_noche_vela(t)}
             continue
-        for estrategia, caja in cajas.items():
-            if t in (caja["vela"], caja["vela"] + timedelta(minutes=15)):
-                break
-        else:
-            continue
-        # 1.a vela (16:30 / 01:45): cierra fuera y mide el doble; si no, se entra dentro
-        # de la siguiente (16:45 / 02:00) en cuanto una vela M5 cierra fuera de la caja.
-        primera = t == caja["vela"]
-        conf = v
-        if primera:
-            d = _caja_ruptura(v, caja)
+        noche = cajas.get("noche")
+        if noche and t >= noche["vela"] + CAJA_NOCHE_VENTANA:
+            del cajas["noche"]  # 05:00 de su grafico sin vela decisiva: esa noche no se opera
+            noche = None
+        if noche and t >= noche["vela"]:
+            # 🌙 (2026-11-20): la primera vela decisiva desde la 01:45 (cierra fuera de la caja
+            # por el lado de su color y mide al menos lo que la vela de la caja).
+            d = _caja_decisiva(v, noche)
             if not d:
                 continue
-        elif estrategia == "noche":  # 🌙: el sentido de la vela de las 02:00, a su cierre
-            d = _caja_color(v)
-        elif (m5 or {}).get(t):
-            d, conf = _caja_sale_m5(m5[t], caja)
-        else:  # sin velas M5: con el cierre de la vela M15
-            d = _caja_ruptura(v, caja, doble=False)
-        del cajas[estrategia]
-        if not d:
-            continue
+            estrategia, caja, primera, conf = "noche", noche, t == noche["vela"], v
+            del cajas["noche"]
+        else:
+            caja = cajas.get("apertura")
+            if not caja or t not in (caja["vela"], caja["vela"] + timedelta(minutes=15)):
+                continue
+            estrategia = "apertura"
+            # 1.a vela (16:30): cierra fuera y mide el doble; si no, se entra dentro de la
+            # siguiente (16:45) en cuanto una vela M5 cierra 5 pts o mas fuera de la caja.
+            primera = t == caja["vela"]
+            conf = v
+            if primera:
+                d = _caja_ruptura(v, caja)
+                if not d:
+                    continue
+            elif (m5 or {}).get(t):
+                d, conf = _caja_sale_m5(m5[t], caja)
+            else:  # sin velas M5: con el cierre de la vela M15
+                d = _caja_ruptura(v, caja, doble=False)
+            del cajas[estrategia]
+            if not d:
+                continue
         limite = (t.replace(hour=16, minute=0) if estrategia == "apertura"
                   else (t + timedelta(days=1)).replace(hour=8, minute=0))
         entrada = conf["c"]
@@ -2761,7 +2786,11 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, 
     sl_pts = v["c"] * CAJA_SL_PCT / 100
     _caja_avisar(estado, "entrada", _caja_fin(v), ahora, f"{icono}{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
                  f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
-                 + (f"➖ La vela de las {_caja_hora_grafico(v['t'] - timedelta(minutes=15))} no confirmó\n"
+                 + (f"✅ **Vela decisiva:** la de las **{_caja_hora_grafico(v['t'])}** cerró "
+                    f"{'verde por encima' if d > 0 else 'roja por debajo'} de la caja y mide "
+                    f"**{v['h'] - v['l']:.0f} pts** (la caja, {rango:.0f})\n"
+                    if op.get("decisiva") else
+                    f"➖ La vela de las {_caja_hora_grafico(v['t'] - timedelta(minutes=15))} no confirmó\n"
                     f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
                     f"{'verde (alcista)' if d > 0 else 'roja (bajista)'}\n"
                     if op.get("color") else
@@ -2771,7 +2800,7 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, 
                     if op.get("segunda") else
                     f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
                     f"{'por encima' if d > 0 else 'por debajo'} de la caja\n")
-                 + ("" if op.get("segunda") else
+                 + ("" if op.get("segunda") or op.get("decisiva") else
                     f"✅ **Doble:** mide {v['h'] - v['l']:.0f} pts, más del doble que la de las {nombre_caja}\n")
                  + "\n"
                  f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(_caja_fin(v))} de tu gráfico)\n"
@@ -2911,18 +2940,54 @@ def revisar_caja_apertura(ahora=None):
                  "Wall Street cierra (23:00 de tu gráfico)")
 
 
+def _caja_aviso_noche_caja(estado, ahora, cabecera, rango):
+    """Aviso 📏 de la caja 🌙 con la regla de la vela decisiva (2026-11-20)."""
+    _caja_avisar(estado, "caja", ahora, ahora, "🌙📏 USTEC -- caja de las 22:45 marcada",
+                 f"**{cabecera}** · la vela de las 22:45 mide **{rango:.0f} pts**\n"
+                 f"Desde la vela de la **01:45** espero la **vela decisiva**: que cierre fuera de la caja "
+                 f"por el lado de su color (verde por encima → BUY, roja por debajo → SELL) y mida "
+                 f"**{CAJA_DECISIVA_MULT * rango:.0f} pts** o más. Entrada al cierre de esa vela; "
+                 f"si no sale ninguna hasta las 05:00, esta noche no se opera.", color=0x95A5A6)
+
+
+def _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela):
+    """🌙: la primera vela decisiva (_caja_decisiva) entre la 01:45 y las 05:00 de su grafico.
+    Avisa "⏳ espero" si la de la 01:45 no lo es y "no hay entrada" a las 05:00."""
+    if estado["op"] is not None:
+        return estado["op"]
+    fin = t_vela + CAJA_NOCHE_VENTANA
+    ventana = [v for v in velas if t_vela <= v["t"] < fin]
+    rango = caja["h"] - caja["l"]
+    for v in ventana:
+        if d := _caja_decisiva(v, caja):
+            estado["op"] = {"dir": d, "vela": v, "segunda": v["t"] != t_vela, "decisiva": True}
+            return estado["op"]
+    if ventana:
+        _caja_avisar(estado, "espera", _caja_fin(ventana[0]), ahora, "🌙⏳ USTEC -- aún no hay vela decisiva",
+                     f"**{cabecera}** · caja de las 22:45: {rango:.0f} pts\n"
+                     f"➖ La vela de la 01:45 no cerró fuera de la caja con fuerza (por el lado de su color y "
+                     f"{CAJA_DECISIVA_MULT * rango:.0f} pts o más).\n"
+                     f"⏳ Sigo mirando cada vela hasta las 05:00 y te aviso en cuanto salga la decisiva.")
+    if ventana and _caja_fin(ventana[-1]) >= fin:
+        _caja_avisar(estado, "fin", fin, ahora, "🌙➖ USTEC -- esta noche no hay entrada",
+                     f"**{cabecera}** · ninguna vela entre la 01:45 y las 05:00 cerró fuera de la caja "
+                     f"con fuerza. **No se opera.**", color=0x95A5A6)
+    return None
+
+
 def revisar_caja_noche(ahora=None):
-    """Avisos de la caja 🌙: caja de las 22:45 y un solo aviso a las 02:00 de su grafico
-    con la vela de la 01:45; luego el resultado (cierre forzado a las 15:00 de su grafico)."""
+    """Avisos de la caja 🌙: caja de las 22:45, la primera vela decisiva entre la 01:45 y las
+    05:00 de su grafico y luego el resultado (cierre forzado a las 15:00 de su grafico)."""
     ahora = ahora or datetime.now(NUEVA_YORK_TZ)
     if not CAJA_AVISOS_NOCHE_ACTIVO or ahora.weekday() == 5:
         return
     minuto = ahora.hour * 60 + ahora.minute
     estado = _caja_noche
     if estado["op"] is None or "fin" in estado["enviados"]:
-        # Sin operacion abierta: solo al cerrar la caja (16:00 NY) y la vela de la 01:45 (19:00 NY).
+        # Sin operacion abierta: al cerrar la caja (16:00 NY) y, de 19:00 a 22:10 NY (02:00-05:10
+        # de su grafico), justo despues de cerrar cada vela M15, buscando la vela decisiva.
         caja_lista = ahora.weekday() < 5 and 16 * 60 <= minuto <= 16 * 60 + 10
-        decision = ahora.weekday() != 4 and 19 * 60 <= minuto <= 19 * 60 + 35
+        decision = ahora.weekday() != 4 and 19 * 60 <= minuto <= 22 * 60 + 10 and minuto % 15 <= 6
         if not (caja_lista or decision):
             return
     elif minuto % 5:
@@ -2948,13 +3013,9 @@ def revisar_caja_noche(ahora=None):
     if caja_v["t"].weekday() == 4:
         cabecera += " (caja del viernes)"
     if ahora < t_vela + timedelta(minutes=15):
-        _caja_aviso_caja(estado, ahora, "🌙", cabecera, "22:45", caja["h"] - caja["l"], "01:45", "02:00", "02:15")
-    if estado["op"] is None:
-        v1 = next((v for v in velas if v["t"] == t_vela), None)
-        v2 = next((v for v in velas if v["t"] == t_vela + timedelta(minutes=15)), None)
-        if _caja_decidir(estado, ahora, "🌙", cabecera, "22:45", caja, v1, v2, "esta noche no hay entrada",
-                         por_color=True) is None:
-            return
+        _caja_aviso_noche_caja(estado, ahora, cabecera, caja["h"] - caja["l"])
+    if estado["op"] is None and _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela) is None:
+        return
     op = estado["op"]
     _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"],
                         "a las 15:00 de tu gráfico")

@@ -333,6 +333,9 @@ SIMBOLO_DOLAR = "UUP"
 UMBRAL_CAIDA_DOLAR = 1.0
 UMBRAL_SUBIDA_DOLAR = 0.1
 SIMBOLO_ORO_ETF = "GLD"
+# 2026-11-20 (el usuario): se pausa todo lo del oro (FVG, estado del oro, dolar y SPY) para
+# centrarse en la caja de USTEC. Con True vuelve todo tal cual.
+ORO_ACTIVO = False
 INTERVALO_ORO_MINUTOS = 60  # decision del usuario (2026-10-12): antes cada 10 min, demasiados mensajes
 SIMBOLO_LIQUIDEZ = "SPY"
 UMBRAL_SPREAD = 1.8
@@ -4448,7 +4451,12 @@ async def on_ready():
     # vacio (cada deploy en Northflank empieza de cero).
     await _restaurar_respaldo()
 
-    if _canal is not None:
+    if _canal is not None and not ORO_ACTIVO:
+        await _canal.send(
+            content=("**Bot de señales iniciado -- solo la caja de USTEC** (📦 tarde y 🌙 noche).\n"
+                     "Las señales del oro están en pausa. Botones de abajo o `!USTEC` para tus operaciones."),
+            view=VistaMonitor())
+    elif _canal is not None:
         await _canal.send(
             content=(
                 "**Bot de senales ICT XAU/USD iniciado.**\n"
@@ -4466,7 +4474,7 @@ async def on_ready():
     else:
         print("ATENCION: no se encontro el canal -- revisa DISCORD_CHANNEL_ID.")
 
-    if not revisar_periodicamente.is_running():
+    if ORO_ACTIVO and not revisar_periodicamente.is_running():
         revisar_periodicamente.start()
     if NASDAQ_ACTIVO and not revisar_nasdaq_periodicamente.is_running():
         revisar_nasdaq_periodicamente.start()
@@ -4478,7 +4486,7 @@ async def on_ready():
     # [V3 -- agregado] Arranca las tareas de correlacion junto a la principal.
     for tarea_v3 in (revisar_dolar_periodicamente, revisar_estado_oro_periodicamente,
                       revisar_liquidez_spy_periodicamente):
-        if not tarea_v3.is_running():
+        if ORO_ACTIVO and not tarea_v3.is_running():
             tarea_v3.start()
 
 

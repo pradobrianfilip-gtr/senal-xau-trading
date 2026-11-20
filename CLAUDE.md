@@ -40,6 +40,11 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-20 — **Oro en pausa: el bot solo lleva la caja de USTEC** (`ORO_ACTIVO = False`): no arrancan
+  `revisar_periodicamente` (FVG experimental y seguimiento de sus señales), "ORO -- estado", el dólar ni la
+  liquidez del SPY; el mensaje de arranque dice "solo la caja de USTEC". Con `True` vuelve todo. ATLAS también se
+  pausa entero (lo para el usuario en Northflank). Fusión (guardián y boletín) sigue. El usuario: "vamos a pausar
+  la mayoría y vamos a dar atención a USTEC caja" — decisión del usuario.
 - 2026-11-20 — **Caja 🌙: entrada con la primera "vela decisiva" entre la 01:45 y las 05:00 de su gráfico**
   (`_caja_decisiva`, `CAJA_DECISIVA_MULT = 1.0`, `CAJA_NOCHE_VENTANA`): la vela tiene que **cerrar fuera de la caja
   por el lado de su color** (verde por encima del máximo → BUY, roja por debajo del mínimo → SELL) y **medir al
@@ -556,6 +561,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-20 — Oro en pausa (`ORO_ACTIVO = False`): el bot solo avisa de la caja de USTEC.
 - 2026-11-20 — Caja 🌙: primera vela decisiva de la 01:45 a las 05:00 (fuera de la caja por el lado de su color y ≥ la vela de la caja).
 - 2026-11-19 — Caja 📦: la vela M5 de la 2.ª oportunidad tiene que cerrar ≥ 5 pts fuera de la caja (`CAJA_MARGEN_M5`).
 - 2026-11-18 — Caja 🌙: si la vela de la 01:45 no confirma, entrada en el sentido de la vela de las 02:00 (aviso 02:15).

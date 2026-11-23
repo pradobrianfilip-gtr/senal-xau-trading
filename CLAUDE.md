@@ -451,14 +451,17 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     Acumulado 🌙 hasta el 13/11: **+874,11 €** (14 de 15 noches ganadoras).
 
-- **Prueba 2.0 de la caja** (**reiniciada el 2026-11-18 desde cero**, con los avisos del bot y las reglas del PR #42;
-  cuenta demo de **200 €**). Las 2 ventas del 17/11 (+43,50 €, con las reglas anteriores) se quitaron del registro
+- **Prueba 2.0 de la caja** (**inicio oficial el 2026-11-22**, cuenta nueva de **200 € en IC Markets**, con los
+  avisos del bot; antes, reiniciada el 18/11 en la cuenta demo anterior). Lo operado en la cuenta anterior (p. ej. la
+  compra de 0,2 de la noche del 20/11) **no cuenta** — decisión del usuario. Las 2 ventas del 17/11 (+43,50 €, con las reglas anteriores) se quitaron del registro
   a petición del usuario ("quítala, que comenzamos desde cero").
 
   | Fecha | Caja | Operaciones | Resultado |
   |---|---|---|---|
+  | 2026-11-23 | 📦 compra | **2 compras de 0,1** en 26.517,6 / 26.535,1 → 26.720,9 / 26.738,9, cerradas a las 17:00 (~+203 pts cada una) | ✅ **+37,25 €** (+18,60 y +18,65) |
 
-  Acumulado 2.0: **0 €** (sin operaciones todavía).
+  Acumulado 2.0: **+37,25 €** en 2 operaciones (2 ganadoras); cuenta 200 € → **237,25 €** (lote 0,3 hasta 600 €;
+  ese día usó 0,1).
 
 ## Arquitectura
 
@@ -574,6 +577,8 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-23 — Prueba 2.0: primeras operaciones (23/11, 📦 2 compras, +37,25 €; cuenta 237,25 €).
+- 2026-11-23 — Prueba 2.0: inicio oficial el 22/11 en IC Markets con 200 € (lo de la cuenta anterior no cuenta).
 - 2026-11-23 — API de solo lectura para la app de iPhone (`/api/caja/hoy`, `/api/avisos`, con `API_TOKEN`).
 - 2026-11-20 — Oro en pausa (`ORO_ACTIVO = False`): el bot solo avisa de la caja de USTEC.
 - 2026-11-20 — Caja 🌙: primera vela decisiva de la 01:45 a las 05:00 (fuera de la caja por el lado de su color y ≥ la vela de la caja).

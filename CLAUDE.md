@@ -40,6 +40,13 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-23 — **API de solo lectura para la app de iPhone** (`ustec-caja-ios`): `GET /api/caja/hoy`
+  (estado de las cajas 📦/🌙: esperando_caja / caja_marcada / sin_entrada / entrada / cerrada, con
+  máximo, mínimo, BUY/SELL, entrada, TP y resultado; y la cuenta: saldo, lote, € del TP) y `GET
+  /api/avisos` (los últimos 100 avisos de las cajas que salieron a Discord). En el mismo servidor de
+  salud (`PORT`), con `Authorization: Bearer <API_TOKEN>`; **sin `API_TOKEN` la API está apagada**
+  (503). No cambia ninguna regla ni ningún aviso. Todo en memoria: tras un redeploy los avisos
+  empiezan de cero — decisión del usuario ("4. Sí").
 - 2026-11-20 — **Oro en pausa: el bot solo lleva la caja de USTEC** (`ORO_ACTIVO = False`): no arrancan
   `revisar_periodicamente` (FVG experimental y seguimiento de sus señales), "ORO -- estado", el dólar ni la
   liquidez del SPY; el mensaje de arranque dice "solo la caja de USTEC". Con `True` vuelve todo. ATLAS también se
@@ -451,8 +458,10 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
   | Fecha | Caja | Operaciones | Resultado |
   |---|---|---|---|
+  | 2026-11-23 | 📦 compra | **2 compras de 0,1** en 26.517,6 / 26.535,1 → 26.720,9 / 26.738,9, cerradas a las 17:00 (~+203 pts cada una) | ✅ **+37,25 €** (+18,60 y +18,65) |
 
-  Acumulado 2.0: **0 €** (sin operaciones todavía).
+  Acumulado 2.0: **+37,25 €** en 2 operaciones (2 ganadoras); cuenta 200 € → **237,25 €** (lote 0,3 hasta 600 €;
+  ese día usó 0,1).
 
 ## Arquitectura
 
@@ -500,6 +509,11 @@ para la caja y a las 19:00 NY para la vela de la 01:45 de su gráfico, `_caja_no
 `_caja_decidir` (1.ª vela con el doble o, si no, aviso de espera y entrada con la primera M5 de la 2.ª vela que sale de la caja; la 🌙 va aparte con `_caja_decidir_noche`: primera vela decisiva de la 01:45 a las 05:00, revisada justo tras cerrar cada M15), `_caja_aviso_entrada` y `_caja_seguir`; estado en memoria (`_caja_vivo`, `_caja_noche`) y, tras un reinicio, no manda avisos de velas cerradas hace más de 20 min
 (`CAJA_MAX_RETRASO_MIN`). Si una vela toca stop y TP, mira sus velas M5.
 
+API de la app (`iniciar_servidor_web`): `/api/caja/hoy` → `caja_api_hoy()` (lee `_caja_vivo` /
+`_caja_noche`, que guardan además `caja`, `cabecera` y `resultado`) y `/api/avisos` →
+`caja_api_avisos()` (`_caja_avisos_api`, lo rellena `_caja_avisar` con lock). Contrato:
+`ustec-caja-ios/docs/API.md`.
+
 Respaldo: `_restaurar_respaldo()` en `on_ready` (antes de los bucles) y `_subir_respaldo()` cada
 5 min si cambió la firma (tamaño + fecha) de algún archivo de estado.
 
@@ -526,7 +540,8 @@ respaldo de Discord):
 | `ARCHIVO_HISTORIAL` / `ARCHIVO_SENALES_ABIERTAS` | Rutas de los archivos de estado | No |
 | `ARCHIVO_HISTORIAL_NASDAQ` / `ARCHIVO_ESTADO_NASDAQ` / `ARCHIVO_HISTORIAL_NASDAQ_R1` | Rutas de los archivos del Nasdaq | No |
 | `DISCORD_CHANNEL_ID_RESPALDO` | Canal del mensaje de respaldo (por defecto, el de señales) | No |
-| `PORT` | Puerto del health check (8080) | No |
+| `PORT` | Puerto del health check (8080) y de la API de la app | No |
+| `API_TOKEN` | Token de la API de la app de iPhone (`/api/...`); sin él la API está apagada | No |
 
 El bot necesita el intent **Message Content** (para `!stats`, `!USTEC` y `!caja_test`; los botones 📊 y 📈 funcionan sin él) y el
 permiso **Fijar mensajes** (respaldo).
@@ -562,7 +577,12 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+<<<<<<< HEAD
+- 2026-11-23 — Prueba 2.0: primeras operaciones (23/11, 📦 2 compras, +37,25 €; cuenta 237,25 €).
 - 2026-11-23 — Prueba 2.0: inicio oficial el 22/11 en IC Markets con 200 € (lo de la cuenta anterior no cuenta).
+=======
+- 2026-11-23 — API de solo lectura para la app de iPhone (`/api/caja/hoy`, `/api/avisos`, con `API_TOKEN`).
+>>>>>>> origin/main
 - 2026-11-20 — Oro en pausa (`ORO_ACTIVO = False`): el bot solo avisa de la caja de USTEC.
 - 2026-11-20 — Caja 🌙: primera vela decisiva de la 01:45 a las 05:00 (fuera de la caja por el lado de su color y ≥ la vela de la caja).
 - 2026-11-19 — Caja 📦: la vela M5 de la 2.ª oportunidad tiene que cerrar ≥ 5 pts fuera de la caja (`CAJA_MARGEN_M5`).

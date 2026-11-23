@@ -81,3 +81,5 @@ fecha,estrategia,lado,lote,entrada,salida,eur,operaciones,ganadoras,perdedoras,n
 2026-11-12,apertura,compra,0.5,28265.8,28336.9,32.15,,,,,
 2026-11-13,noche,compra,0.5,28393.2,28473.4,36.28,,,,caja de las 22:45 del 12,
 2026-11-13,noche,compra,0.5,28389.0,28480.0,41.17,,,,caja de las 22:45 del 12,
+2026-11-23,apertura,compra,0.1,26517.6,26720.9,18.60,,,,cerrada a las 17:00 (~+203 pts); IC Markets,2.0
+2026-11-23,apertura,compra,0.1,26535.1,26738.9,18.65,,,,cerrada a las 17:00 (~+204 pts),2.0

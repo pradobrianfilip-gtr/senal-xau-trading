@@ -139,6 +139,7 @@ import asyncio
 import threading
 import csv
 import json
+import hmac
 import statistics
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2720,6 +2721,10 @@ CAJA_MAX_RETRASO_MIN = 20  # tras un reinicio no se avisa lo que paso hace mas
 DIAS_SEMANA = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 _caja_vivo = {"fecha": None, "enviados": set(), "op": None}
 _caja_noche = {"caja_t": None, "enviados": set(), "op": None}
+# API de la app de iPhone (2026-11-23): ultimos avisos mandados de las cajas (en memoria; se
+# vacia en cada redeploy) y el resumen de cada caja que se sirve en /api/caja/hoy.
+_caja_avisos_api = deque(maxlen=100)
+_caja_api_lock = threading.Lock()
 
 
 def _caja_avisar(estado, clave, cierre, ahora, titulo, texto, color=COLOR_USTEC):
@@ -2731,6 +2736,9 @@ def _caja_avisar(estado, clave, cierre, ahora, titulo, texto, color=COLOR_USTEC)
         print(f"Caja USTEC: aviso '{clave}' de hace mas de {CAJA_MAX_RETRASO_MIN} min -- no se manda.")
         return
     enviar_discord(titulo, texto, color=color)
+    with _caja_api_lock:
+        _caja_avisos_api.append({"caja": "apertura" if estado is _caja_vivo else "noche", "clave": clave,
+                                 "titulo": titulo, "texto": texto, "color": color, "hora": ahora.isoformat()})
 
 
 def _caja_fin(v):
@@ -2875,6 +2883,7 @@ def _caja_seguir(estado, ahora, icono, velas, op, limite, texto_cierre):
             continue
         if v["t"] >= limite:  # hueco (fin de semana): se cierra a la apertura
             pts = (v["o"] - entrada) * d
+            estado["resultado"] = {"motivo": "CIERRE", "puntos": pts, "hora": v["t"]}
             _caja_avisar(estado, "fin", v["t"], ahora, f"{icono}⏹️ USTEC -- {lado}: cierra",
                          f"{texto_cierre} sin tocar TP ni stop: cierra la {lado} de las {hora}. "
                          f"Resultado ≈ **{pts:+.0f} pts** ({_caja_eur(pts)}).")
@@ -2891,17 +2900,20 @@ def _caja_seguir(estado, ahora, icono, velas, op, limite, texto_cierre):
                     toca_sl = sub_sl
                     break
         if toca_sl:
+            estado["resultado"] = {"motivo": "SL", "puntos": -sl_pts, "hora": _caja_fin(v)}
             _caja_avisar(estado, "fin", _caja_fin(v), ahora, f"{icono}❌ USTEC -- {lado}: stop tocado",
                          f"La {lado} de las {hora} tocó el stop: **-{sl_pts:.0f} pts** "
                          f"(≈ {_caja_eur(-sl_pts)}).", color=0xE74C3C)
             return
         if toca_tp:
+            estado["resultado"] = {"motivo": "TP", "puntos": float(CAJA_TP_PUNTOS), "hora": _caja_fin(v)}
             _caja_avisar(estado, "fin", _caja_fin(v), ahora, f"{icono}✅ USTEC -- {lado}: TP +{CAJA_TP_PUNTOS} pts",
                          f"La {lado} de las {hora} llegó al objetivo: **+{CAJA_TP_PUNTOS} pts** "
                          f"(≈ {_caja_eur(CAJA_TP_PUNTOS)}). Cierra si no tenías el TP puesto.", color=0x2ECC71)
             return
         if _caja_fin(v) >= limite:
             pts = (v["c"] - entrada) * d
+            estado["resultado"] = {"motivo": "CIERRE", "puntos": pts, "hora": _caja_fin(v)}
             _caja_avisar(estado, "fin", _caja_fin(v), ahora, f"{icono}⏹️ USTEC -- {lado}: cierra",
                          f"{texto_cierre} sin tocar TP ni stop: cierra la {lado} de las {hora}. "
                          f"Resultado ≈ **{pts:+.0f} pts** ({_caja_eur(pts)}).")
@@ -2916,7 +2928,7 @@ def revisar_caja_apertura(ahora=None):
         return
     estado = _caja_vivo
     if estado["fecha"] != ahora.date():
-        estado.update(fecha=ahora.date(), enviados=set(), op=None)
+        estado.update(fecha=ahora.date(), enviados=set(), op=None, caja=None, resultado=None)
     if "fin" in estado["enviados"] or (minuto < 9 * 60 + 45 and "caja" in estado["enviados"]):
         return
     # Tras la confirmacion (09:45 NY) solo hace falta seguir la operacion, cada 5 min.
@@ -2935,6 +2947,7 @@ def revisar_caja_apertura(ahora=None):
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
     rango = caja["h"] - caja["l"]
     dia = f"{DIAS_SEMANA[ahora.weekday()]} {ahora.strftime('%d/%m')}"
+    estado.update(caja=caja, cabecera=dia)
     _caja_aviso_caja(estado, ahora, "📦", dia, "15:00", rango, "16:30", "16:45")
     if _caja_decidir(estado, ahora, "📦", dia, "15:00", caja, v1, v2, "hoy no hay entrada") is None:
         return
@@ -3005,7 +3018,7 @@ def revisar_caja_noche(ahora=None):
         return
     caja_v = cajas[-1]
     if estado["caja_t"] != caja_v["t"]:
-        estado.update(caja_t=caja_v["t"], enviados=set(), op=None)
+        estado.update(caja_t=caja_v["t"], enviados=set(), op=None, caja=None, resultado=None)
     if "fin" in estado["enviados"]:
         return
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
@@ -3015,6 +3028,7 @@ def revisar_caja_noche(ahora=None):
     cabecera = f"Noche del {DIAS_SEMANA[noche.weekday()].lower()} {noche.strftime('%d/%m')}"
     if caja_v["t"].weekday() == 4:
         cabecera += " (caja del viernes)"
+    estado.update(caja=caja, cabecera=cabecera)
     if ahora < t_vela + timedelta(minutes=15):
         _caja_aviso_noche_caja(estado, ahora, cabecera, caja["h"] - caja["l"])
     if estado["op"] is None and _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela) is None:
@@ -3024,6 +3038,60 @@ def revisar_caja_noche(ahora=None):
                         "a las 15:00 de tu gráfico")
     limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)
     _caja_seguir(estado, ahora, "🌙", velas, op, limite, "Llegan las 15:00 de tu gráfico")
+
+# ---------------------------------------------------------------------------
+# API de la app de iPhone (repo ustec-caja-ios, 2026-11-23): solo lectura, con token
+# (variable API_TOKEN; sin ella la API esta apagada). Contrato en ustec-caja-ios/docs/API.md.
+# ---------------------------------------------------------------------------
+
+def _iso(t):
+    return t.isoformat() if isinstance(t, datetime) else t
+
+
+def _caja_api_estado(nombre, estado, ahora):
+    """Resumen de una caja para la API: esperando_caja / caja_marcada / sin_entrada / entrada / cerrada."""
+    caja, op, resultado = estado.get("caja"), estado.get("op"), estado.get("resultado")
+    vigente = (estado.get("fecha") == ahora.date() if nombre == "apertura"
+               else estado.get("caja_t") is not None and ahora - estado["caja_t"] < timedelta(hours=40))
+    if not vigente or caja is None:
+        return {"caja": nombre, "estado": "esperando_caja", "cabecera": None, "maximo": None,
+                "minimo": None, "rango_pts": None, "operacion": None}
+    datos = {"caja": nombre, "cabecera": estado.get("cabecera"), "maximo": caja["h"], "minimo": caja["l"],
+             "rango_pts": caja["h"] - caja["l"], "operacion": None}
+    if op is None:
+        datos["estado"] = "sin_entrada" if "fin" in estado["enviados"] else "caja_marcada"
+        return datos
+    d, entrada = op["dir"], op["vela"]["c"]
+    datos["estado"] = "cerrada" if resultado else "entrada"
+    datos["operacion"] = {
+        "lado": "BUY" if d > 0 else "SELL", "entrada": entrada, "hora": _iso(_caja_fin(op["vela"])),
+        "tp": entrada + d * CAJA_TP_PUNTOS, "segunda": bool(op.get("segunda")),
+        "resultado": dict(resultado, hora=_iso(resultado["hora"])) if resultado else None,
+    }
+    return datos
+
+
+def caja_api_hoy(ahora=None):
+    ahora = ahora or datetime.now(NUEVA_YORK_TZ)
+    lote, saldo = _caja_lote()
+    return {
+        "ahora": ahora.isoformat(),
+        "cajas": [_caja_api_estado("apertura", _caja_vivo, ahora), _caja_api_estado("noche", _caja_noche, ahora)],
+        "cuenta": {"saldo": saldo, "lote": lote, "tp_pts": CAJA_TP_PUNTOS,
+                   "tp_eur": CAJA_TP_PUNTOS * CAJA_EUR_PUNTO_LOTE * lote, "con_stop": CAJA_CON_STOP},
+    }
+
+
+def caja_api_avisos():
+    with _caja_api_lock:
+        avisos = list(_caja_avisos_api)
+    return {"avisos": avisos[::-1]}  # el mas reciente primero
+
+
+def _api_autorizada(cabecera):
+    token = os.environ.get("API_TOKEN", "")
+    return bool(token) and hmac.compare_digest((cabecera or "").encode(), f"Bearer {token}".encode())
+
 
 # --- Cliente de Discord (bot de verdad, no un webhook) ---
 intents = discord.Intents.default()
@@ -4361,8 +4429,29 @@ async def respaldo_periodicamente():
 def iniciar_servidor_web():
     puerto = int(os.environ.get("PORT", 8080))
 
+    rutas_api = {"/api/caja/hoy": caja_api_hoy, "/api/avisos": caja_api_avisos}
+
     class Handler(BaseHTTPRequestHandler):
+        def _json(self, codigo, datos):
+            cuerpo = json.dumps(datos, ensure_ascii=False, default=str).encode()
+            self.send_response(codigo)
+            self.send_header("Content-type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.end_headers()
+            self.wfile.write(cuerpo)
+
         def do_GET(self):
+            ruta = self.path.split("?")[0]
+            if ruta in rutas_api:
+                if not os.environ.get("API_TOKEN"):
+                    return self._json(503, {"error": "API desactivada (falta API_TOKEN)"})
+                if not _api_autorizada(self.headers.get("Authorization")):
+                    return self._json(401, {"error": "token incorrecto"})
+                try:
+                    return self._json(200, rutas_api[ruta]())
+                except Exception as e:
+                    print(f"API: error en {ruta} ({_sin_secretos(e)})")
+                    return self._json(500, {"error": "error interno"})
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()

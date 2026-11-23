@@ -444,8 +444,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 
     Acumulado 🌙 hasta el 13/11: **+874,11 €** (14 de 15 noches ganadoras).
 
-- **Prueba 2.0 de la caja** (**reiniciada el 2026-11-18 desde cero**, con los avisos del bot y las reglas del PR #42;
-  cuenta demo de **200 €**). Las 2 ventas del 17/11 (+43,50 €, con las reglas anteriores) se quitaron del registro
+- **Prueba 2.0 de la caja** (**inicio oficial el 2026-11-22**, cuenta nueva de **200 € en IC Markets**, con los
+  avisos del bot; antes, reiniciada el 18/11 en la cuenta demo anterior). Lo operado en la cuenta anterior (p. ej. la
+  compra de 0,2 de la noche del 20/11) **no cuenta** — decisión del usuario. Las 2 ventas del 17/11 (+43,50 €, con las reglas anteriores) se quitaron del registro
   a petición del usuario ("quítala, que comenzamos desde cero").
 
   | Fecha | Caja | Operaciones | Resultado |
@@ -561,6 +562,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-23 — Prueba 2.0: inicio oficial el 22/11 en IC Markets con 200 € (lo de la cuenta anterior no cuenta).
 - 2026-11-20 — Oro en pausa (`ORO_ACTIVO = False`): el bot solo avisa de la caja de USTEC.
 - 2026-11-20 — Caja 🌙: primera vela decisiva de la 01:45 a las 05:00 (fuera de la caja por el lado de su color y ≥ la vela de la caja).
 - 2026-11-19 — Caja 📦: la vela M5 de la 2.ª oportunidad tiene que cerrar ≥ 5 pts fuera de la caja (`CAJA_MARGEN_M5`).

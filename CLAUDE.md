@@ -9,6 +9,8 @@ El usuario no debería tener que repetir nada que ya esté escrito aquí.
 
 - Idioma: todo en **español** (conversación, comentarios, mensajes de Discord, commits).
 - **Respuestas cortas y concretas** (pedido del usuario el 2026-10-22): lo esencial, sin rodeos.
+- **No volver a sugerir el stop loss** en las cajas (pedido del usuario el 2026-11-24): opera sin stop por decisión
+  propia, con su experiencia de la prueba 1 (85 operaciones). Se respeta y no se recomienda más.
 - Antes de cambiar algo, leer este archivo completo y respetar las decisiones vigentes.
 - Si una petición nueva contradice una decisión anterior, **preguntar** antes de cambiarla
   y, si se confirma, actualizar la decisión aquí (no borrar el historial).

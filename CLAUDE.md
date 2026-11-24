@@ -468,7 +468,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   | 2026-11-23 | 📦 compra | **2 compras de 0,1** en 26.517,6 / 26.535,1 → 26.720,9 / 26.738,9, cerradas a las 17:00 (~+203 pts cada una) | ✅ **+37,25 €** (+18,60 y +18,65) |
   | 2026-11-24 | 🌙 compra (caja de las 22:45 del 23) | **1 compra de 0,3** en 26.877,8 → 26.950,0, cerrada a las 03:10 (~+72 pts). En el NQ la vela decisiva fue la de las 03:00 (verde por encima, 169 pts frente a una caja de 167) → aviso BUY a las 03:15; cerró antes del aviso | ✅ **+19,85 €** |
 
-  Acumulado 2.0: **+57,10 €** en 3 operaciones (3 ganadoras); cuenta 200 € → **257,10 €** (lote 0,3 hasta 600 €).
+  | 2026-11-24 | 📦 compra | **1 compra de 0,3** en 26.408,8 → 25.988,6, cerrada a las 17:44 (**~−420 pts, sin stop**). Caja de 232 pts; la vela de las 16:30 (doji, 5 pts de cuerpo) no confirmó; la M5 de las 16:45 cerró solo 12 pts por encima → aviso BUY "16:50" que **llegó a las 16:55:56** (retraso de Yahoo): el precio ya había subido ~50 pts, desde su entrada el máximo fue ~+23 pts y luego cayó ~400. El bot avisó "TP +70" contando desde su precio de referencia (NQ 26.392 → máx. 26.501), no alcanzable para el usuario | ❌ **−115,00 €** |
+
+  Acumulado 2.0: **−57,90 €** en 4 operaciones (3 ganadoras, 1 perdedora); cuenta 200 € → **142,10 €** (lote 0,3 hasta 600 €).
 
 ## Arquitectura
 
@@ -584,6 +586,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-24 — Prueba 2.0: tarde del 24/11 (📦 compra 0,3 con aviso tardío, −115 €; cuenta 142,10 €).
 - 2026-11-24 — Prueba 2.0: noche del 24/11 (🌙 compra 0,3, +19,85 €; cuenta 257,10 €).
 - 2026-11-23 — Prueba 2.0: primeras operaciones (23/11, 📦 2 compras, +37,25 €; cuenta 237,25 €).
 - 2026-11-23 — Prueba 2.0: inicio oficial el 22/11 en IC Markets con 200 € (lo de la cuenta anterior no cuenta).

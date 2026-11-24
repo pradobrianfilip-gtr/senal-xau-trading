@@ -269,6 +269,13 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 - ~~Redondear el Entry a 2 decimales~~: hecho en "ORO -- estado" (2026-10-12); la FVG ya redondea
   (la lógica clásica, desactivada, no).
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
+- **EN PAUSA (2026-11-24): aviso de "niveles del día" para USTEC y S&P 500** (pedido del usuario; gráfico del
+  papel aprobado): a las 14:30 y 22:30 de su gráfico, call wall / put wall / zero gamma (opciones de QQQ y SPY) +
+  POC, máx./mín. de ayer y zonas de stops (velas NQ/ES de Yahoo), y en el aviso de entrada una nota si hay un
+  "muro" antes del TP de 70 pts; **solo información, no cambia la regla**. Datos de opciones: CBOE bloquea a los
+  servidores (Cloudflare), Yahoo trae el open interest a 0 y Nasdaq.com solo responde haciéndose pasar por un
+  navegador (descartado). Elegido **MarketData.app, plan Starter (trial)**; el token irá en Northflank (bot
+  Señales) como `MARKETDATA_TOKEN`. En pausa hasta que al usuario le llegue el correo de la cuenta.
 - Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
   al backtest.
 - Nasdaq: ~~confirmar que Twelve Data da el QQQ~~ (confirmado el 2026-10-12: llegó el primer

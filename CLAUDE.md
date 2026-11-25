@@ -42,6 +42,19 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-25 — **Caja 🌙: "2.º factor" de la 8.ª vela, aviso aparte (la regla de la vela decisiva NO cambia)**
+  (`_caja_decidir_ocho`, estado `_caja_noche8`): la vela de la **01:45** marca el sentido (su color, o su lado si ya es
+  decisiva); si no convence, el bot avisa "🧭 la 8.ª vela marca BUY/SELL" y espera un **cierre de confirmación**: la
+  primera vela de ese color que cierre fuera de la caja por ese lado (sin mínimo de tamaño) hasta las 05:00 → aviso
+  "🌙🔴/🟢 USTEC -- SELL/BUY (2.º factor: 8.ª vela)" con su TP y su seguimiento (🌙🧭). Si coincide con la vela
+  decisiva (misma vela y sentido), solo sale el aviso de la regla. **El usuario decide** cuál toma. El usuario: "después
+  de ocho velas, la octava determina mucho, es la que nos dirige; si no te convence deja que fluya y espera un cierre
+  de confirmación en el mismo sentido o una ruptura de estructura" — "es como un doble factor, agrégalo junto con lo
+  de la regla actual, tú me lo envías y yo determino". 60 noches del NQ (sin stop, TP 70): regla actual 23 ops, 19 TP,
+  +330 pts; 8.ª vela 27 ops, 23 TP, +684 pts. 24→25/11: la regla no entró (la vela de las 02:00, roja y por debajo,
+  medía 66 pts frente a una caja de 167) y el 2.º factor da SELL a las 02:15 ✅ TP. La "ruptura de estructura" queda
+  sin programar hasta definirla (p. ej. romper el último máximo/mínimo de la noche). No está en `!caja_test` ni en la
+  API de la app (sus avisos sí salen en `/api/avisos`, como "noche") — decisión del usuario.
 - 2026-11-23 — **API de solo lectura para la app de iPhone** (`ustec-caja-ios`): `GET /api/caja/hoy`
   (estado de las cajas 📦/🌙: esperando_caja / caja_marcada / sin_entrada / entrada / cerrada, con
   máximo, mínimo, BUY/SELL, entrada, TP y resultado; y la cuenta: saldo, lote, € del TP) y `GET
@@ -565,6 +578,7 @@ permiso **Fijar mensajes** (respaldo).
 
 ## Historial de cambios
 
+- 2026-11-25 — Caja 🌙: 2.º factor de la 8.ª vela (aviso aparte; la regla no cambia).
 - 2026-09-26 — PR #1: auditoría (velas cerradas, rupturas por cruce, claves por timestamp,
   `_sin_secretos`, escritura atómica, caché de velas con lock, horario de mercado USA,
   envío a Discord con control de errores).

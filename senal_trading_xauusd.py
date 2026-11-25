@@ -2721,6 +2721,8 @@ CAJA_MAX_RETRASO_MIN = 20  # tras un reinicio no se avisa lo que paso hace mas
 DIAS_SEMANA = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 _caja_vivo = {"fecha": None, "enviados": set(), "op": None}
 _caja_noche = {"caja_t": None, "enviados": set(), "op": None}
+# 🌙 2.o factor (2026-11-25): la 8.a vela (01:45) marca el sentido; aviso aparte, la regla no cambia.
+_caja_noche8 = {"caja_t": None, "enviados": set(), "op": None}
 # API de la app de iPhone (2026-11-23): ultimos avisos mandados de las cajas (en memoria; se
 # vacia en cada redeploy) y el resumen de cada caja que se sirve en /api/caja/hoy.
 _caja_avisos_api = deque(maxlen=100)
@@ -2795,9 +2797,17 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, 
     d, v = op["dir"], op["vela"]
     lado = "BUY" if d > 0 else "SELL"
     sl_pts = v["c"] * CAJA_SL_PCT / 100
-    _caja_avisar(estado, "entrada", _caja_fin(v), ahora, f"{icono}{'🟢' if d > 0 else '🔴'} USTEC -- {lado}",
+    _caja_avisar(estado, "entrada", _caja_fin(v), ahora,
+                 f"{icono}{'🟢' if d > 0 else '🔴'} USTEC -- {lado}" + (" (2.º factor: 8.ª vela)" if op.get("ocho") else ""),
                  f"**{cabecera}** · caja de las {nombre_caja}: {rango:.0f} pts\n"
-                 + (f"✅ **Vela decisiva:** la de las **{_caja_hora_grafico(v['t'])}** cerró "
+                 + (f"🧭 **8.ª vela:** la de la **01:45** marcó **{lado}**"
+                    + ("" if v["t"] == op["v8"]["t"] else
+                       f"; la de las **{_caja_hora_grafico(v['t'])}** cerró "
+                       f"{'verde por encima' if d > 0 else 'roja por debajo'} de la caja")
+                    + f" ({v['h'] - v['l']:.0f} pts)\n"
+                    f"⚠️ Es el **2.º factor**, no la regla de la vela decisiva ({op['regla']}). **Decides tú.**\n"
+                    if op.get("ocho") else
+                    f"✅ **Vela decisiva:** la de las **{_caja_hora_grafico(v['t'])}** cerró "
                     f"{'verde por encima' if d > 0 else 'roja por debajo'} de la caja y mide "
                     f"**{v['h'] - v['l']:.0f} pts** (la caja, {rango:.0f})\n"
                     if op.get("decisiva") else
@@ -2811,7 +2821,7 @@ def _caja_aviso_entrada(estado, ahora, icono, cabecera, op, nombre_caja, rango, 
                     if op.get("segunda") else
                     f"✅ **Confirmación:** la vela de las **{_caja_hora_grafico(v['t'])}** cerró "
                     f"{'por encima' if d > 0 else 'por debajo'} de la caja\n")
-                 + ("" if op.get("segunda") or op.get("decisiva") else
+                 + ("" if op.get("segunda") or op.get("decisiva") or op.get("ocho") else
                     f"✅ **Doble:** mide {v['h'] - v['l']:.0f} pts, más del doble que la de las {nombre_caja}\n")
                  + "\n"
                  f"**Entra en: {lado}** a mercado ({_caja_hora_grafico(_caja_fin(v))} de tu gráfico)\n"
@@ -2963,7 +2973,10 @@ def _caja_aviso_noche_caja(estado, ahora, cabecera, rango):
                  f"Desde la vela de la **01:45** espero la **vela decisiva**: que cierre fuera de la caja "
                  f"por el lado de su color (verde por encima → BUY, roja por debajo → SELL) y mida "
                  f"**{CAJA_DECISIVA_MULT * rango:.0f} pts** o más. Entrada al cierre de esa vela; "
-                 f"si no sale ninguna hasta las 05:00, esta noche no se opera.", color=0x95A5A6)
+                 f"si no sale ninguna hasta las 05:00, esta noche no se opera.\n"
+                 f"🧭 **2.º factor (aparte):** la vela de la 01:45 marca el sentido por su color; si no convence, "
+                 f"te aviso cuando una vela de ese color cierre fuera de la caja por ese lado. Decides tú.",
+                 color=0x95A5A6)
 
 
 def _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela):
@@ -2991,6 +3004,41 @@ def _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela):
     return None
 
 
+def _caja_decidir_ocho(estado, ahora, cabecera, caja, velas, t_vela):
+    """🌙 2.o factor (2026-11-25, el usuario: "la octava determina mucho, es la que nos dirige; si
+    no te convence, deja que fluya y espera un cierre de confirmacion en el mismo sentido"): el
+    sentido lo marca la vela de la 01:45 (su color, o su lado si es decisiva) y la entrada es la
+    primera vela de ese color que cierra fuera de la caja por ese lado, sin minimo de tamano,
+    hasta las 05:00. Solo es un aviso aparte: la regla de la vela decisiva no cambia."""
+    if estado["op"] is not None:
+        return estado["op"]
+    fin = t_vela + CAJA_NOCHE_VENTANA
+    ventana = [v for v in velas if t_vela <= v["t"] < fin]
+    if not ventana or ventana[0]["t"] != t_vela:
+        return None
+    v8 = ventana[0]
+    d8 = _caja_decisiva(v8, caja) or _caja_color(v8)
+    if not d8:
+        _caja_avisar(estado, "fin", _caja_fin(v8), ahora, "🌙🧭 USTEC -- 2.º factor: la 8.ª vela no marca sentido",
+                     f"**{cabecera}** · la vela de la 01:45 cerró igual que abrió.", color=0x95A5A6)
+        return None
+    for v in ventana:
+        if _caja_color(v) == d8 and (v["c"] > caja["h"] if d8 > 0 else v["c"] < caja["l"]):
+            estado["op"] = {"dir": d8, "vela": v, "v8": v8, "ocho": True}
+            return estado["op"]
+    lado = "BUY" if d8 > 0 else "SELL"
+    _caja_avisar(estado, "espera", _caja_fin(v8), ahora, f"🌙🧭 USTEC -- 2.º factor: la 8.ª vela marca {lado}",
+                 f"**{cabecera}** · la vela de la 01:45 cerró **{'verde' if d8 > 0 else 'roja'}** "
+                 f"({'por encima' if v8['c'] > caja['h'] else 'por debajo' if v8['c'] < caja['l'] else 'dentro'} de la caja).\n"
+                 f"⏳ Espero un cierre de confirmación: una vela {'verde por encima' if d8 > 0 else 'roja por debajo'} "
+                 f"de la caja (hasta las 05:00). Es el 2.º factor, aparte de la regla.", color=0x95A5A6)
+    if _caja_fin(ventana[-1]) >= fin:
+        _caja_avisar(estado, "fin", fin, ahora, "🌙🧭 USTEC -- 2.º factor: sin confirmación",
+                     f"**{cabecera}** · ninguna vela cerró fuera de la caja en el sentido de la 8.ª vela "
+                     f"({lado}) hasta las 05:00.", color=0x95A5A6)
+    return None
+
+
 def revisar_caja_noche(ahora=None):
     """Avisos de la caja 🌙: caja de las 22:45, la primera vela decisiva entre la 01:45 y las
     05:00 de su grafico y luego el resultado (cierre forzado a las 15:00 de su grafico)."""
@@ -2998,8 +3046,8 @@ def revisar_caja_noche(ahora=None):
     if not CAJA_AVISOS_NOCHE_ACTIVO or ahora.weekday() == 5:
         return
     minuto = ahora.hour * 60 + ahora.minute
-    estado = _caja_noche
-    if estado["op"] is None or "fin" in estado["enviados"]:
+    estado, est8 = _caja_noche, _caja_noche8
+    if all(e["op"] is None or "fin" in e["enviados"] for e in (estado, est8)):
         # Sin operacion abierta: al cerrar la caja (16:00 NY) y, de 19:00 a 22:10 NY (02:00-05:10
         # de su grafico), justo despues de cerrar cada vela M15, buscando la vela decisiva.
         caja_lista = ahora.weekday() < 5 and 16 * 60 <= minuto <= 16 * 60 + 10
@@ -3019,8 +3067,8 @@ def revisar_caja_noche(ahora=None):
     caja_v = cajas[-1]
     if estado["caja_t"] != caja_v["t"]:
         estado.update(caja_t=caja_v["t"], enviados=set(), op=None, caja=None, resultado=None)
-    if "fin" in estado["enviados"]:
-        return
+    if est8["caja_t"] != caja_v["t"]:
+        est8.update(caja_t=caja_v["t"], enviados=set(), op=None)
     caja = {"h": caja_v["h"], "l": caja_v["l"]}
     t_vela = _caja_noche_vela(caja_v["t"])
     noche = _fecha_registro({"estrategia": "noche", "t": caja_v["t"]})
@@ -3031,13 +3079,22 @@ def revisar_caja_noche(ahora=None):
     estado.update(caja=caja, cabecera=cabecera)
     if ahora < t_vela + timedelta(minutes=15):
         _caja_aviso_noche_caja(estado, ahora, cabecera, caja["h"] - caja["l"])
-    if estado["op"] is None and _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela) is None:
-        return
-    op = estado["op"]
-    _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", caja["h"] - caja["l"],
-                        "a las 15:00 de tu gráfico")
-    limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)
-    _caja_seguir(estado, ahora, "🌙", velas, op, limite, "Llegan las 15:00 de tu gráfico")
+    rango = caja["h"] - caja["l"]
+    if "fin" not in estado["enviados"] and _caja_decidir_noche(estado, ahora, cabecera, caja, velas, t_vela):
+        op = estado["op"]
+        _caja_aviso_entrada(estado, ahora, "🌙", cabecera, op, "22:45", rango, "a las 15:00 de tu gráfico")
+        limite = (op["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)
+        _caja_seguir(estado, ahora, "🌙", velas, op, limite, "Llegan las 15:00 de tu gráfico")
+    if "fin" not in est8["enviados"] and _caja_decidir_ocho(est8, ahora, cabecera, caja, velas, t_vela):
+        op8, op = est8["op"], estado["op"]
+        if op is not None and op["vela"]["t"] == op8["vela"]["t"] and op["dir"] == op8["dir"]:
+            est8["enviados"].update({"entrada", "fin"})  # misma vela y sentido: ya lo dice el aviso de la regla
+            return
+        op8["regla"] = ("aún sin entrada" if op is None else
+                        f"esa dio {'BUY' if op['dir'] > 0 else 'SELL'} a las {_caja_hora_grafico(_caja_fin(op['vela']))}")
+        _caja_aviso_entrada(est8, ahora, "🌙", cabecera, op8, "22:45", rango, "a las 15:00 de tu gráfico")
+        limite = (op8["vela"]["t"] + timedelta(days=1)).replace(hour=8, minute=0)
+        _caja_seguir(est8, ahora, "🌙🧭", velas, op8, limite, "Llegan las 15:00 de tu gráfico")
 
 # ---------------------------------------------------------------------------
 # API de la app de iPhone (repo ustec-caja-ios, 2026-11-23): solo lectura, con token

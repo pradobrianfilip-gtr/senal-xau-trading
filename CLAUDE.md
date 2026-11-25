@@ -9,6 +9,8 @@ El usuario no debería tener que repetir nada que ya esté escrito aquí.
 
 - Idioma: todo en **español** (conversación, comentarios, mensajes de Discord, commits).
 - **Respuestas cortas y concretas** (pedido del usuario el 2026-10-22): lo esencial, sin rodeos.
+- **No volver a sugerir el stop loss** en las cajas (pedido del usuario el 2026-11-24): opera sin stop por decisión
+  propia, con su experiencia de la prueba 1 (85 operaciones). Se respeta y no se recomienda más.
 - Antes de cambiar algo, leer este archivo completo y respetar las decisiones vigentes.
 - Si una petición nueva contradice una decisión anterior, **preguntar** antes de cambiarla
   y, si se confirma, actualizar la decisión aquí (no borrar el historial).
@@ -40,6 +42,19 @@ de consulta del estado.
 
 Formato: `AAAA-MM-DD — decisión — motivo`.
 
+- 2026-11-25 — **Caja 🌙: "2.º factor" de la 8.ª vela, aviso aparte (la regla de la vela decisiva NO cambia)**
+  (`_caja_decidir_ocho`, estado `_caja_noche8`): la vela de la **01:45** marca el sentido (su color, o su lado si ya es
+  decisiva); si no convence, el bot avisa "🧭 la 8.ª vela marca BUY/SELL" y espera un **cierre de confirmación**: la
+  primera vela de ese color que cierre fuera de la caja por ese lado (sin mínimo de tamaño) hasta las 05:00 → aviso
+  "🌙🔴/🟢 USTEC -- SELL/BUY (2.º factor: 8.ª vela)" con su TP y su seguimiento (🌙🧭). Si coincide con la vela
+  decisiva (misma vela y sentido), solo sale el aviso de la regla. **El usuario decide** cuál toma. El usuario: "después
+  de ocho velas, la octava determina mucho, es la que nos dirige; si no te convence deja que fluya y espera un cierre
+  de confirmación en el mismo sentido o una ruptura de estructura" — "es como un doble factor, agrégalo junto con lo
+  de la regla actual, tú me lo envías y yo determino". 60 noches del NQ (sin stop, TP 70): regla actual 23 ops, 19 TP,
+  +330 pts; 8.ª vela 27 ops, 23 TP, +684 pts. 24→25/11: la regla no entró (la vela de las 02:00, roja y por debajo,
+  medía 66 pts frente a una caja de 167) y el 2.º factor da SELL a las 02:15 ✅ TP. La "ruptura de estructura" queda
+  sin programar hasta definirla (p. ej. romper el último máximo/mínimo de la noche). No está en `!caja_test` ni en la
+  API de la app (sus avisos sí salen en `/api/avisos`, como "noche") — decisión del usuario.
 - 2026-11-23 — **API de solo lectura para la app de iPhone** (`ustec-caja-ios`): `GET /api/caja/hoy`
   (estado de las cajas 📦/🌙: esperando_caja / caja_marcada / sin_entrada / entrada / cerrada, con
   máximo, mínimo, BUY/SELL, entrada, TP y resultado; y la cuenta: saldo, lote, € del TP) y `GET
@@ -269,6 +284,13 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
 - ~~Redondear el Entry a 2 decimales~~: hecho en "ORO -- estado" (2026-10-12); la FVG ya redondea
   (la lógica clásica, desactivada, no).
 - Idea comentada: que ATLAS confirme señales de este bot y de fusión (confirmación entre bots).
+- **EN PAUSA (2026-11-24): aviso de "niveles del día" para USTEC y S&P 500** (pedido del usuario; gráfico del
+  papel aprobado): a las 14:30 y 22:30 de su gráfico, call wall / put wall / zero gamma (opciones de QQQ y SPY) +
+  POC, máx./mín. de ayer y zonas de stops (velas NQ/ES de Yahoo), y en el aviso de entrada una nota si hay un
+  "muro" antes del TP de 70 pts; **solo información, no cambia la regla**. Datos de opciones: CBOE bloquea a los
+  servidores (Cloudflare), Yahoo trae el open interest a 0 y Nasdaq.com solo responde haciéndose pasar por un
+  navegador (descartado). Elegido **MarketData.app, plan Starter (trial)**; el token irá en Northflank (bot
+  Señales) como `MARKETDATA_TOKEN`. En pausa hasta que al usuario le llegue el correo de la cuenta.
 - Revisar dentro de unas semanas los resultados de la FVG experimental (`!stats`) frente
   al backtest.
 - Nasdaq: ~~confirmar que Twelve Data da el QQQ~~ (confirmado el 2026-10-12: llegó el primer
@@ -461,7 +483,9 @@ Decisiones técnicas (tomadas por Claude; el usuario puede cambiarlas):
   | 2026-11-23 | 📦 compra | **2 compras de 0,1** en 26.517,6 / 26.535,1 → 26.720,9 / 26.738,9, cerradas a las 17:00 (~+203 pts cada una) | ✅ **+37,25 €** (+18,60 y +18,65) |
   | 2026-11-24 | 🌙 compra (caja de las 22:45 del 23) | **1 compra de 0,3** en 26.877,8 → 26.950,0, cerrada a las 03:10 (~+72 pts). En el NQ la vela decisiva fue la de las 03:00 (verde por encima, 169 pts frente a una caja de 167) → aviso BUY a las 03:15; cerró antes del aviso | ✅ **+19,85 €** |
 
-  Acumulado 2.0: **+57,10 €** en 3 operaciones (3 ganadoras); cuenta 200 € → **257,10 €** (lote 0,3 hasta 600 €).
+  | 2026-11-24 | 📦 compra | **1 compra de 0,3** en 26.408,8 → 25.988,6, cerrada a las 17:44 (**~−420 pts, sin stop**). Caja de 232 pts; la vela de las 16:30 (doji, 5 pts de cuerpo) no confirmó; la M5 de las 16:45 cerró solo 12 pts por encima → aviso BUY "16:50" que **llegó a las 16:55:56** (retraso de Yahoo): el precio ya había subido ~50 pts, desde su entrada el máximo fue ~+23 pts y luego cayó ~400. El bot avisó "TP +70" contando desde su precio de referencia (NQ 26.392 → máx. 26.501), no alcanzable para el usuario | ❌ **−115,00 €** |
+
+  Acumulado 2.0: **−57,90 €** en 4 operaciones (3 ganadoras, 1 perdedora); cuenta 200 € → **142,10 €** (lote 0,3 hasta 600 €).
 
 ## Arquitectura
 
@@ -554,6 +578,7 @@ permiso **Fijar mensajes** (respaldo).
 
 ## Historial de cambios
 
+- 2026-11-25 — Caja 🌙: 2.º factor de la 8.ª vela (aviso aparte; la regla no cambia).
 - 2026-09-26 — PR #1: auditoría (velas cerradas, rupturas por cruce, claves por timestamp,
   `_sin_secretos`, escritura atómica, caché de velas con lock, horario de mercado USA,
   envío a Discord con control de errores).
@@ -577,6 +602,7 @@ permiso **Fijar mensajes** (respaldo).
 - 2026-10-21 — Comando `!USTEC` y botón 📈 con las operaciones manuales del Nasdaq (`operaciones_ustec.csv`).
 - 2026-10-29 — Nasdaq del bot (zona de ruido y R1) desactivado; Señales solo con el oro.
 - 2026-10-29 — FVG: tope de 5 señales al día (antes 1).
+- 2026-11-24 — Prueba 2.0: tarde del 24/11 (📦 compra 0,3 con aviso tardío, −115 €; cuenta 142,10 €).
 - 2026-11-24 — Prueba 2.0: noche del 24/11 (🌙 compra 0,3, +19,85 €; cuenta 257,10 €).
 - 2026-11-23 — Prueba 2.0: primeras operaciones (23/11, 📦 2 compras, +37,25 €; cuenta 237,25 €).
 - 2026-11-23 — Prueba 2.0: inicio oficial el 22/11 en IC Markets con 200 € (lo de la cuenta anterior no cuenta).
